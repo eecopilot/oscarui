@@ -149,6 +149,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -245,8 +246,7 @@ function emitStyles() {
 `;
 }
 
-function emitMainActivity(entryScreen) {
-  const actionClass = `${entryScreen}ActionsImpl`;
+function emitMainActivity(entryScreen, screens) {
   const lines = [
     'package app.generated',
     '',
@@ -259,6 +259,9 @@ function emitMainActivity(entryScreen) {
     'import androidx.compose.material3.Surface',
     'import androidx.compose.runtime.Composable',
     'import androidx.compose.ui.Modifier',
+    'import androidx.navigation.compose.NavHost',
+    'import androidx.navigation.compose.composable',
+    'import androidx.navigation.compose.rememberNavController',
     '',
     'class MainActivity : ComponentActivity() {',
     '    override fun onCreate(savedInstanceState: Bundle?) {',
@@ -271,6 +274,7 @@ function emitMainActivity(entryScreen) {
     '',
     '@Composable',
     'private fun OscarUIRoot() {',
+    '    val navController = rememberNavController()',
     '    MaterialTheme {',
     '        Surface(',
     '            modifier = Modifier',
@@ -278,7 +282,13 @@ function emitMainActivity(entryScreen) {
     '                .background(Theme.Colors.background),',
     '            color = Theme.Colors.background',
     '        ) {',
-    `            ${entryScreen}Screen(actions = ${actionClass}())`,
+    `            NavHost(navController = navController, startDestination = "${entryScreen}") {`,
+    ...screens.map(screen => [
+      `                composable("${screen}") {`,
+      `                    ${screen}Screen(actions = ${screen}ActionsImpl(), navController = navController)`,
+      '                }',
+    ]).flat(),
+    '            }',
     '        }',
     '    }',
     '}',
@@ -295,7 +305,8 @@ export function prepareAndroidHost(root, screens) {
   const javaHome = detectJava17Home();
   const entry = screens[0]?.ir;
 
-  if (!entry) throw new Error('android host: at least one screen is required');
+  const entryScreen = screens.find(({ ir }) => ir.entry)?.ir ?? entry;
+  if (!entryScreen) throw new Error('android host: at least one screen is required');
   if (!androidHome) throw new Error('android host: Android SDK not found. Set ANDROID_HOME.');
 
   resetPath(appDir);
@@ -311,7 +322,7 @@ export function prepareAndroidHost(root, screens) {
   writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle());
   writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest());
   writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles());
-  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entry.screen));
+  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entryScreen.screen, screens.map(({ ir }) => ir.screen)));
 
   return {
     appName: ANDROID_APP_NAME,

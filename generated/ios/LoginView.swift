@@ -10,6 +10,7 @@ struct LoginView: View {
     @State private var email: String = ""
     @State private var password: String = ""
     let actions: LoginActions
+    @ObservedObject var router: OscarRouter
 
     var body: some View {
         VStack(alignment: .center, spacing: Theme.Spacing.normal) {
@@ -36,6 +37,7 @@ struct LoginView: View {
                 .overlay(RoundedRectangle(cornerRadius: Theme.Radius.normal).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
             Button {
                 actions.login()
+                router.push(.dashboard)
             } label: {
                 Text("Sign in")
                     .font(Theme.Typography.body)

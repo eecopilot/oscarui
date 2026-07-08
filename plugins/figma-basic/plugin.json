@@ -1,0 +1,7 @@
+{
+  "name": "figma-basic",
+  "version": "0.1.0",
+  "description": "Import constrained Figma JSON exports into OscarUI screen IR.",
+  "capabilities": ["importer"],
+  "entry": "../../compiler/figma-import.mjs"
+}

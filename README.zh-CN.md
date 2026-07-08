@@ -33,6 +33,12 @@ npm run build
 npm test
 ```
 
+生成给下一轮 AI 修改使用的确定性反馈：
+
+```sh
+npm run author:loop
+```
+
 生成并保存两端截图：
 
 ```sh
@@ -40,6 +46,12 @@ npm run snapshots
 ```
 
 截图会保存到 `.aic/snapshots/`。
+
+比较已保存截图的基础元数据：
+
+```sh
+npm run snapshots:diff
+```
 
 ## 日常工作流
 
@@ -86,6 +98,18 @@ npm run dry-run:android
 ```sh
 npm run dev:ios
 npm run dev:android
+```
+
+把受限 Figma JSON 导入为草稿 screen：
+
+```sh
+npm run figma:import -- path/to/figma.json screens/imported.ui.yaml
+```
+
+校验插件 manifest：
+
+```sh
+npm run plugins:validate
 ```
 
 ## UI IR 示例
@@ -177,25 +201,11 @@ oscarui/
 ├── theme/                   # 设计 token
 ├── compiler/                # 确定性编译器和 CLI
 ├── native/                  # 手写原生 action 实现
+├── plugins/                 # 可选的确定性流水线扩展
 ├── generated/               # 生成的 SwiftUI / Compose 代码
 └── .aic/                    # 本地宿主工程、构建缓存和截图
 ```
 
-## 当前能力
+## 项目进度
 
-Phase 1 已完成：
-
-- IR schema + token 系统
-- SwiftUI / Compose 生成
-- 登录页示例
-- iOS / Android CLI 宿主工程
-
-Phase 1.5 已完成：
-
-- screen 级布局契约：`safeArea`、`contentPosition`、`contentWidth`
-- 控件视觉 token：内容宽度、控件高度、边框、placeholder、主按钮文字颜色
-- `textField` / `button` 确定性样式
-- 语义校验增强
-- 两端截图命令
-
-下一阶段重点是 Phase 2：导航、条件渲染、列表数据绑定，以及插件扩展协议。
+阶段进度单独维护在 [`ROADMAP.md`](ROADMAP.md)，README 只保留项目介绍和日常使用说明。

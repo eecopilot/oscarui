@@ -72,7 +72,42 @@ function addRootContentSize(modifiers, layout) {
   modifiers.push(`.widthIn(max = Theme.Size.content${pascal(layout.contentWidth)})`, '.fillMaxWidth()');
 }
 
-function emitNode(node, ctx) {
+function kotlinLiteral(value, type) {
+  if (type === 'string') return `"${esc(value ?? '')}"`;
+  if (type === 'bool') return value === true ? 'true' : 'false';
+  if (type === 'double') return value === undefined ? '0.0' : String(value);
+  return value === undefined ? '0' : String(value);
+}
+
+function listItemType(state) {
+  return `${pascal(state.name)}Item`;
+}
+
+function conditionExpression(condition) {
+  const left = condition.state;
+  const valueType = typeof condition.equals === 'boolean' || typeof condition.notEquals === 'boolean'
+    ? 'bool'
+    : typeof condition.equals === 'number' || typeof condition.notEquals === 'number'
+      ? 'double'
+      : 'string';
+  if (Object.hasOwn(condition, 'equals')) return `${left} == ${kotlinLiteral(condition.equals, valueType)}`;
+  if (Object.hasOwn(condition, 'notEquals')) return `${left} != ${kotlinLiteral(condition.notEquals, valueType)}`;
+  return left;
+}
+
+function applyVisibility(lines, node) {
+  if (!node.visibleWhen) return lines;
+  return [`if (${conditionExpression(node.visibleWhen)}) {`, ...indent(lines, 1), '}'];
+}
+
+function actionLines(action) {
+  const lines = [`actions.${action.name}()`];
+  if (action.navigation?.type === 'push') lines.push(`navController.navigate("${action.navigation.screen}")`);
+  if (action.navigation?.type === 'pop') lines.push('navController.popBackStack()');
+  return lines;
+}
+
+function emitRawNode(node, ctx) {
   switch (node.type) {
     case 'column':
     case 'row': {
@@ -93,14 +128,14 @@ function emitNode(node, ctx) {
           : `verticalAlignment = ${alignRow(node.align)}`
       );
       const lines = [`${isCol ? 'Column' : 'Row'}(`, ...indent(args.map((a, i) => a + (i < args.length - 1 ? ',' : '')), 1), ') {'];
-      for (const child of node.children) lines.push(...indent(emitNode(child, {}), 1));
+      for (const child of node.children) lines.push(...indent(emitNode(child, { ...ctx, isRootContent: false }), 1));
       lines.push('}');
       return lines;
     }
     case 'text':
       return [
         'Text(',
-        `    text = "${esc(node.value)}",`,
+        `    text = ${node.bind ? (node.bind.startsWith('item.') ? `item.${node.bind.slice('item.'.length)}` : `${node.bind}.toString()`) : `"${esc(node.value)}"`},`,
         `    style = Theme.Typography.${node.role ?? 'body'},`,
         `    color = Theme.Colors.${node.color ?? 'textPrimary'}`,
         ')',
@@ -120,7 +155,8 @@ function emitNode(node, ctx) {
     }
     case 'button': {
       const role = node.role ?? 'primary';
-      const call = `actions.${node.action}()`;
+      const action = ctx.actions.get(node.action);
+      const call = actionLines(action).join('; ');
       const commonArgs = [
         `onClick = { ${call} }`,
         'modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth)',
@@ -191,9 +227,12 @@ function emitNode(node, ctx) {
       ];
     }
     case 'list': {
-      const lines = ['LazyColumn {', `    items(${node.bind ?? 'items'}) { item ->`];
+      const lines = [
+        `LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.Spacing.${node.spacing ?? 'normal'})) {`,
+        `    items(${node.bind}) { item ->`,
+      ];
       const inner = [];
-      for (const child of node.itemTemplate) inner.push(...emitNode(child, {}));
+      for (const child of node.itemTemplate) inner.push(...emitNode(child, { ...ctx, isRootContent: false }));
       lines.push(...indent(inner, 2));
       lines.push('    }', '}');
       return lines;
@@ -203,6 +242,42 @@ function emitNode(node, ctx) {
     default:
       throw new Error(`compose: unknown node type ${node.type}`);
   }
+}
+
+function emitNode(node, ctx) {
+  return applyVisibility(emitRawNode(node, ctx), node);
+}
+
+function emitListStateTypes(ir) {
+  const lines = [];
+  for (const state of ir.state ?? []) {
+    if (state.type !== 'list') continue;
+    const fields = [
+      'val id: Int',
+      ...state.item.fields.map(field => `val ${field.name}: ${KT_TYPE[field.type]}`),
+    ];
+    lines.push(`data class ${listItemType(state)}(`);
+    lines.push(...indent(fields.map((field, index) => `${field}${index < fields.length - 1 ? ',' : ''}`), 1));
+    lines.push(')', '');
+  }
+  return lines;
+}
+
+function emitStateDefault(state) {
+  if (state.type !== 'list') {
+    return state.default !== undefined
+      ? kotlinLiteral(state.default, state.type)
+      : KT_DEFAULT[state.type];
+  }
+
+  const itemType = listItemType(state);
+  const values = state.default ?? [];
+  if (!values.length) return 'emptyList()';
+  const rows = values.map((item, index) => {
+    const fields = state.item.fields.map(field => `${field.name} = ${kotlinLiteral(item[field.name], field.type)}`);
+    return `${itemType}(id = ${index}, ${fields.join(', ')})`;
+  });
+  return `listOf(\n${indent(rows.map((row, index) => `${row}${index < rows.length - 1 ? ',' : ''}`), 2).join('\n')}\n    )`;
 }
 
 export function emitScreenKotlin(ir) {
@@ -227,9 +302,12 @@ export function emitScreenKotlin(ir) {
     'import androidx.compose.ui.text.input.KeyboardType',
     'import androidx.compose.ui.text.input.PasswordVisualTransformation',
     'import androidx.compose.ui.unit.dp',
+    'import androidx.navigation.NavHostController',
     'import coil.compose.AsyncImage',
     '',
   ];
+
+  lines.push(...emitListStateTypes(ir));
 
   const actions = ir.actions ?? [];
   lines.push(`interface ${name}Actions {`);
@@ -237,21 +315,24 @@ export function emitScreenKotlin(ir) {
   lines.push('}', '');
 
   lines.push('@Composable');
-  lines.push(`fun ${name}Screen(actions: ${name}Actions) {`);
+  lines.push(`fun ${name}Screen(actions: ${name}Actions, navController: NavHostController) {`);
   for (const s of ir.state ?? []) {
-    const def = s.default !== undefined
-      ? (s.type === 'string' ? `"${esc(s.default)}"` : String(s.default))
-      : KT_DEFAULT[s.type];
-    lines.push(`    var ${s.name} by remember { mutableStateOf${s.type === 'string' ? '' : `<${KT_TYPE[s.type]}>`}(${def}) }`);
+    const def = emitStateDefault(s);
+    if (s.type === 'list') {
+      lines.push(`    val ${s.name} = remember { ${def} }`);
+    } else {
+      lines.push(`    var ${s.name} by remember { mutableStateOf${s.type === 'string' ? '' : `<${KT_TYPE[s.type]}>`}(${def}) }`);
+    }
   }
   if ((ir.state ?? []).length) lines.push('');
 
   const layout = screenLayout(ir);
+  const actionsByName = new Map(actions.map(action => [action.name, action]));
   const rootModifiers = ['Modifier', '.fillMaxSize()', '.background(Theme.Colors.background)'];
   if (layout.safeArea) rootModifiers.push('.safeDrawingPadding()');
 
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout }));
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName }));
   const wrapped = ir.body.length > 1
     ? ['Column(modifier = Modifier.fillMaxWidth()) {', ...indent(body, 1), '}']
     : body;

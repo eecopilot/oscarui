@@ -1,4 +1,5 @@
 screen: Login
+entry: true
 title: Login
 
 layout:
@@ -45,5 +46,8 @@ body:
 actions:
   - name: login
     steps: [validate, call_api, save_token, navigate]
+    navigation:
+      type: push
+      screen: Dashboard
   - name: forgotPassword
     steps: [navigate]

@@ -17,6 +17,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 
 interface LoginActions {
@@ -25,7 +26,7 @@ interface LoginActions {
 }
 
 @Composable
-fun LoginScreen(actions: LoginActions) {
+fun LoginScreen(actions: LoginActions, navController: NavHostController) {
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
 
@@ -71,7 +72,7 @@ fun LoginScreen(actions: LoginActions) {
                 modifier = Modifier.fillMaxWidth().height(Theme.Size.controlHeight)
             )
             Button(
-                onClick = { actions.login() },
+                onClick = { actions.login(); navController.navigate("Dashboard") },
                 modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth),
                 contentPadding = PaddingValues(horizontal = Theme.Spacing.normal),
                 shape = RoundedCornerShape(Theme.Radius.large),

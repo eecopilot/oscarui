@@ -249,28 +249,7 @@ oscarui/
 
 ## 十、路线图
 
-**Phase 1（MVP，当前）**
-- [x] IR schema + token 系统
-- [x] 编译器：column/row/text/image/button/textField/list/spacer
-- [x] login 示例跑通两端生成
-- [x] 接入真实 Xcode / Android CLI 宿主工程验证编译与模拟器运行
-
-**Phase 1.5（跨端一致性层）**
-- [x] Screen 级布局契约：safeArea、contentPosition、contentWidth
-- [x] 控件视觉 token：content width、control height、border、placeholder、onPrimary
-- [x] textField / button 使用确定性样式，减少平台默认控件差异
-- [x] 语义校验增强：重复 state/action、token 引用、native action 实现缺失
-- [x] UI 截图命令：构建并启动两端后保存 `.aic/snapshots/*.png`
-
-**Phase 2**
-- 导航（NavigationStack / NavHost）、条件渲染、列表数据绑定
-- AI 修改闭环工具化（validate 失败自动回喂 AI）
-- Figma 导入 → IR
-- 快照测试：同一 IR 两端截图 diff
-
-**Phase 3**
-- Runtime 解释器 + 热更新
-- AI Agent 自动优化（跑视觉回归后自评）
+阶段进度单独维护在 [`ROADMAP.md`](ROADMAP.md)，避免 README、方案文档和实现进度多处同步。
 
 ---
 
