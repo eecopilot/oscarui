@@ -97,6 +97,39 @@ This file tracks project phases. README files should describe the project and da
   - [ ] Feed visual diff findings into `.aic/ai-feedback.md`
   - [ ] Gate high-risk UI changes on screenshot review before commit
 
+## Phase 4: Production Hardening & Developer Experience
+
+- [ ] CLI packaging and distribution
+  - [ ] Publish a usable npm CLI entrypoint
+  - [ ] Support project initialization from a clean directory
+  - [ ] Add version, help, and command discovery output
+  - [ ] Keep local `.aic/` build artifacts outside source control
+- [ ] CI and release workflow
+  - [ ] Add GitHub Actions for validate, plugin validation, and build
+  - [ ] Add platform doctor checks that can run safely in CI where possible
+  - [ ] Add release tagging and changelog generation
+  - [ ] Add npm publish dry-run checks
+- [ ] Renderer stability and parity
+  - [ ] Expand golden generated-code fixtures for SwiftUI and Compose
+  - [ ] Track renderer output changes with readable diffs
+  - [ ] Add parity smoke tests for navigation, lists, forms, components, and app config
+  - [ ] Document intentional platform differences
+- [ ] Native host customization
+  - [ ] Support project display name, bundle id, app id, version, and orientation overrides end to end
+  - [ ] Support app icons and launch assets in generated host projects
+  - [ ] Add clear extension points for hand-written native action implementations
+  - [ ] Keep generated host skeletons reproducible and safe to delete
+- [ ] Error reporting and diagnostics
+  - [ ] Improve validation messages with file paths and node context
+  - [ ] Add actionable hints for common schema, token, component, and native action errors
+  - [ ] Make dev command failures easier to recover from
+  - [ ] Add structured diagnostic output for AI tooling
+- [ ] Documentation and examples
+  - [ ] Add a quickstart from empty repo to running iOS and Android apps
+  - [ ] Add examples for forms, navigation, lists, components, and native config
+  - [ ] Add troubleshooting docs for Xcode, simulators, Android SDK, Gradle, and emulators
+  - [ ] Keep README focused on daily usage and link deeper docs out
+
 ## Phase 5: Component Catalog & AI Authoring Kit
 
 - [ ] Standard component catalog
