@@ -25,6 +25,12 @@ function runLogged(command, args, root) {
   execFileSync(command, args, { stdio: 'inherit', cwd: root });
 }
 
+function cleanInstalledApp(simulator, bundleId, root) {
+  console.log(`→ Removing any previously installed ${bundleId}`);
+  run('xcrun', ['simctl', 'terminate', simulator.udid, bundleId]);
+  run('xcrun', ['simctl', 'uninstall', simulator.udid, bundleId]);
+}
+
 function availableIosSimulators() {
   const result = run('xcrun', ['simctl', 'list', 'devices', 'available', '--json']);
   if (!result.ok) return { ok: false, error: result.stderr || result.stdout };
@@ -182,6 +188,7 @@ export function devIos(root, config) {
 
   runLogged(commands[0][0], commands[0][1], root);
   bootSimulator(simulator, root);
+  cleanInstalledApp(simulator, host.bundleId, root);
   runLogged(commands[4][0], commands[4][1], root);
   runLogged(commands[5][0], commands[5][1], root);
 

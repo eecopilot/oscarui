@@ -22,45 +22,51 @@ struct DashboardView: View {
     @ObservedObject var router: OscarRouter
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.loose) {
-            Text("OscarUI")
-                .font(Theme.Typography.title)
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Text("Cross-platform UI from deterministic IR")
-                .font(Theme.Typography.body)
-                .foregroundStyle(Theme.Colors.textSecondary)
-            if isEmpty == true {
-                Text("No projects yet")
-                    .font(Theme.Typography.body)
-                    .foregroundStyle(Theme.Colors.textSecondary)
-            }
-            VStack(alignment: .leading, spacing: Theme.Spacing.normal) {
-                ForEach(projects) { item in
-                    ProjectCardView(
-                        title: item.name,
-                        subtitle: item.platform,
-                        onSelect: { actions.selectProject() }
-                    )
+        GeometryReader { proxy in
+            ZStack(alignment: .topLeading) {
+                Theme.Colors.background
+                    .ignoresSafeArea()
+                VStack(alignment: .leading, spacing: Theme.Spacing.loose) {
+                    Text("OscarUI")
+                        .font(Theme.Typography.title)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Cross-platform UI from deterministic IR")
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    if isEmpty == true {
+                        Text("No projects yet")
+                            .font(Theme.Typography.body)
+                            .foregroundStyle(Theme.Colors.textSecondary)
+                    }
+                    VStack(alignment: .leading, spacing: Theme.Spacing.normal) {
+                        ForEach(projects) { item in
+                            ProjectCardView(
+                                title: item.name,
+                                subtitle: item.platform,
+                                onSelect: { actions.selectProject() }
+                            )
+                        }
+                    }
+                    Button {
+                        actions.goBack()
+                        router.pop()
+                    } label: {
+                        Text("Back")
+                            .font(Theme.Typography.body)
+                            .frame(minWidth: Theme.Size.buttonMinWidth)
+                            .frame(height: Theme.Size.controlHeight)
+                            .padding(.horizontal, Theme.Spacing.normal)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.Colors.primary)
+                    .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.large))
+                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.large).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
                 }
+                .padding(Theme.Spacing.normal)
+                    .frame(maxWidth: Theme.Size.contentNormal)
             }
-            Button {
-                actions.goBack()
-                router.pop()
-            } label: {
-                Text("Back")
-                    .font(Theme.Typography.body)
-                    .frame(minWidth: Theme.Size.buttonMinWidth)
-                    .frame(height: Theme.Size.controlHeight)
-                    .padding(.horizontal, Theme.Spacing.normal)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Colors.primary)
-            .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.large))
-            .overlay(RoundedRectangle(cornerRadius: Theme.Radius.large).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .padding(Theme.Spacing.normal)
-        .frame(maxWidth: Theme.Size.contentNormal)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(Theme.Colors.background)
     }
 }

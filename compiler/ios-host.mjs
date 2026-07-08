@@ -23,9 +23,13 @@ function iosConfig(config = {}) {
 }
 
 function iosOrientations(value) {
-  if (value === 'landscape') return '"UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"';
-  if (value === 'all') return '"UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"';
-  return '"UIInterfaceOrientationPortrait"';
+  if (value === 'landscape') return ['UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'];
+  if (value === 'all') return ['UIInterfaceOrientationPortrait', 'UIInterfaceOrientationPortraitUpsideDown', 'UIInterfaceOrientationLandscapeLeft', 'UIInterfaceOrientationLandscapeRight'];
+  return ['UIInterfaceOrientationPortrait'];
+}
+
+function iosOrientationsBuildSetting(value) {
+  return `"${iosOrientations(value).join(' ')}"`;
 }
 
 function plistEscape(value) {
@@ -66,6 +70,33 @@ function emitInfoPlist(config = {}) {
     `    <string>${plistEscape(ios.versionName)}</string>`,
     '    <key>CFBundleVersion</key>',
     `    <string>${plistEscape(ios.versionCode)}</string>`,
+    '    <key>UIApplicationSceneManifest</key>',
+    '    <dict>',
+    '        <key>UIApplicationSupportsMultipleScenes</key>',
+    '        <false/>',
+    '        <key>UISceneConfigurations</key>',
+    '        <dict>',
+    '            <key>UIWindowSceneSessionRoleApplication</key>',
+    '            <array>',
+    '                <dict>',
+    '                    <key>UISceneConfigurationName</key>',
+    '                    <string>Default Configuration</string>',
+    '                </dict>',
+    '            </array>',
+    '        </dict>',
+    '    </dict>',
+    '    <key>UIApplicationSupportsIndirectInputEvents</key>',
+    '    <true/>',
+    '    <key>UILaunchScreen</key>',
+    '    <dict/>',
+    '    <key>UISupportedInterfaceOrientations</key>',
+    '    <array>',
+    ...iosOrientations(ios.orientation.phone).map(value => `        <string>${value}</string>`),
+    '    </array>',
+    '    <key>UISupportedInterfaceOrientations~ipad</key>',
+    '    <array>',
+    ...iosOrientations(ios.orientation.tablet).map(value => `        <string>${value}</string>`),
+    '    </array>',
   ];
 
   for (const [key, value] of privacyEntries) {
@@ -338,8 +369,8 @@ function buildSettings(configuration, config = {}) {
     '                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;',
     '                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;',
     '                INFOPLIST_KEY_UILaunchScreen_Generation = YES;',
-    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = ${iosOrientations(ios.orientation.tablet)};`,
-    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = ${iosOrientations(ios.orientation.phone)};`,
+    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = ${iosOrientationsBuildSetting(ios.orientation.tablet)};`,
+    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = ${iosOrientationsBuildSetting(ios.orientation.phone)};`,
     '                LD_RUNPATH_SEARCH_PATHS = (',
     '                    "$(inherited)",',
     '                    "@executable_path/Frameworks",',

@@ -131,10 +131,6 @@ function emitRawNode(node, ctx) {
       lines.push('}');
       if (node.padding && node.padding !== 'none')
         lines.push(`.padding(Theme.Spacing.${node.padding})`);
-      if (ctx.isRootContent) {
-        const width = contentWidthModifier(ctx.layout);
-        if (width) lines.push(width);
-      }
       return lines;
     }
     case 'text': {
@@ -302,15 +298,20 @@ export function emitScreenSwift(ir, components = []) {
   const componentsByName = new Map(components.map(component => [component.component, component]));
   const bindings = new Set((ir.state ?? []).map(state => state.name));
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName, components: componentsByName, bindings }));
-  const wrapped = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
-  lines.push(...indent(wrapped, 2));
-  if (ir.body.length > 1) {
-    const width = contentWidthModifier(layout);
-    if (width) lines.push(`        ${width}`);
-  }
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: false, layout, actions: actionsByName, components: componentsByName, bindings }));
+  const content = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
   const fallbackAlignment = rootAlignment(ir.body.length === 1 ? ir.body[0] : undefined);
-  lines.push(`        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: ${screenAlignment(layout, fallbackAlignment)})`);
+  const alignment = screenAlignment(layout, fallbackAlignment);
+  lines.push('        GeometryReader { proxy in');
+  lines.push(`            ZStack(alignment: ${alignment}) {`);
+  lines.push('                Theme.Colors.background');
+  lines.push('                    .ignoresSafeArea()');
+  lines.push(...indent(content, 4));
+  const width = contentWidthModifier(layout);
+  if (width) lines.push(`                    ${width}`);
+  lines.push('            }');
+  lines.push('            .frame(width: proxy.size.width, height: proxy.size.height)');
+  lines.push('        }');
   lines.push('        .background(Theme.Colors.background)');
   if (!layout.safeArea) lines.push('        .ignoresSafeArea()');
 

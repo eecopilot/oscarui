@@ -13,56 +13,62 @@ struct LoginView: View {
     @ObservedObject var router: OscarRouter
 
     var body: some View {
-        VStack(alignment: .center, spacing: Theme.Spacing.normal) {
-            Text("Welcome back")
-                .font(Theme.Typography.title)
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Text("Sign in to continue")
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.textSecondary)
-            TextField("", text: $email, prompt: Text("Email").foregroundColor(Theme.Colors.placeholder))
-                .font(Theme.Typography.body)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.horizontal, Theme.Spacing.normal)
-                .frame(height: Theme.Size.controlHeight)
-                .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.normal).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
-                .keyboardType(.emailAddress)
-            SecureField("", text: $password, prompt: Text("Password").foregroundColor(Theme.Colors.placeholder))
-                .font(Theme.Typography.body)
-                .foregroundStyle(Theme.Colors.textPrimary)
-                .padding(.horizontal, Theme.Spacing.normal)
-                .frame(height: Theme.Size.controlHeight)
-                .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))
-                .overlay(RoundedRectangle(cornerRadius: Theme.Radius.normal).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
-            Button {
-                actions.login()
-                router.push(.dashboard)
-            } label: {
-                Text("Sign in")
-                    .font(Theme.Typography.body)
-                    .frame(minWidth: Theme.Size.buttonMinWidth)
-                    .frame(height: Theme.Size.controlHeight)
-                    .padding(.horizontal, Theme.Spacing.normal)
+        GeometryReader { proxy in
+            ZStack(alignment: .top) {
+                Theme.Colors.background
+                    .ignoresSafeArea()
+                VStack(alignment: .center, spacing: Theme.Spacing.normal) {
+                    Text("Welcome back")
+                        .font(Theme.Typography.title)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text("Sign in to continue")
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                    TextField("", text: $email, prompt: Text("Email").foregroundColor(Theme.Colors.placeholder))
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .padding(.horizontal, Theme.Spacing.normal)
+                        .frame(height: Theme.Size.controlHeight)
+                        .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.normal).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
+                        .keyboardType(.emailAddress)
+                    SecureField("", text: $password, prompt: Text("Password").foregroundColor(Theme.Colors.placeholder))
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                        .padding(.horizontal, Theme.Spacing.normal)
+                        .frame(height: Theme.Size.controlHeight)
+                        .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))
+                        .overlay(RoundedRectangle(cornerRadius: Theme.Radius.normal).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
+                    Button {
+                        actions.login()
+                        router.push(.dashboard)
+                    } label: {
+                        Text("Sign in")
+                            .font(Theme.Typography.body)
+                            .frame(minWidth: Theme.Size.buttonMinWidth)
+                            .frame(height: Theme.Size.controlHeight)
+                            .padding(.horizontal, Theme.Spacing.normal)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.Colors.onPrimary)
+                    .background(Theme.Colors.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.large))
+                    Button {
+                        actions.forgotPassword()
+                    } label: {
+                        Text("Forgot password?")
+                            .font(Theme.Typography.body)
+                            .frame(minWidth: Theme.Size.buttonMinWidth)
+                            .frame(height: Theme.Size.controlHeight)
+                            .padding(.horizontal, Theme.Spacing.normal)
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(Theme.Colors.primary)
+                }
+                .padding(Theme.Spacing.normal)
+                    .frame(maxWidth: Theme.Size.contentCompact)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Colors.onPrimary)
-            .background(Theme.Colors.primary, in: RoundedRectangle(cornerRadius: Theme.Radius.large))
-            Button {
-                actions.forgotPassword()
-            } label: {
-                Text("Forgot password?")
-                    .font(Theme.Typography.body)
-                    .frame(minWidth: Theme.Size.buttonMinWidth)
-                    .frame(height: Theme.Size.controlHeight)
-                    .padding(.horizontal, Theme.Spacing.normal)
-            }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Colors.primary)
+            .frame(width: proxy.size.width, height: proxy.size.height)
         }
-        .padding(Theme.Spacing.normal)
-        .frame(maxWidth: Theme.Size.contentCompact)
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .background(Theme.Colors.background)
     }
 }
