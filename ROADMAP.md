@@ -39,6 +39,15 @@ This file tracks project phases. README files should describe the project and da
 - [x] Compose reusable `@Composable` generation
 - [x] Semantic validation for component names, required props, unknown props, and callback mapping
 
+## Phase 2.6: Native App Manifest
+
+- [x] Unified native app config in `app.config.yaml`
+- [x] App config schema and semantic validation
+- [x] iOS Info.plist and build setting generation
+- [x] Android Manifest and Gradle config generation
+- [x] Typed permission declarations with iOS privacy usage checks
+- [x] URL scheme, app link, orientation, version, and app id config hooks
+
 ## Phase 3: Runtime
 
 - [ ] Runtime IR interpreter + hot update path

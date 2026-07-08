@@ -145,9 +145,9 @@ export function doctorIos() {
   return true;
 }
 
-export function dryRunIos(root) {
-  const host = prepareIosHost(root);
-  const commands = iosCommandPlan(root);
+export function dryRunIos(root, config) {
+  const host = prepareIosHost(root, config);
+  const commands = iosCommandPlan(root, undefined, config);
 
   console.log(`→ ${host.project}`);
   console.log(`→ .aic/ios/${host.appName}/*.swift`);
@@ -159,8 +159,8 @@ export function dryRunIos(root) {
   }
 }
 
-export function devIos(root) {
-  const host = prepareIosHost(root);
+export function devIos(root, config) {
+  const host = prepareIosHost(root, config);
   console.log(`→ ${host.project}`);
   console.log(`→ .aic/ios/${host.appName}/*.swift`);
   console.log(`→ iOS host template: ${host.template}`);
@@ -175,7 +175,7 @@ export function devIos(root) {
     process.exit(1);
   }
   const simulator = selected.device;
-  const commands = iosCommandPlan(root, { udid: simulator.udid });
+  const commands = iosCommandPlan(root, { udid: simulator.udid }, config);
 
   console.log('');
   console.log(`Using simulator: ${simulator.name} (${simulator.udid})`);

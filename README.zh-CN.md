@@ -59,6 +59,7 @@ npm run snapshots:diff
 
 - `screens/*.ui.yaml`: 页面结构和 UI 意图
 - `components/*.ui.yaml`: 可复用组件 UI 意图
+- `app.config.yaml`: App 标识、平台设置、权限、隐私文案、链接和方向
 - `theme/tokens.yaml`: spacing、radius、color、typography、size 等设计 token
 - `schema/ui-ir.schema.json`: 允许使用的 IR 能力
 - `compiler/*.mjs`: IR 到 SwiftUI / Compose 的确定性模板
@@ -199,6 +200,7 @@ action: login
 oscarui/
 ├── screens/                 # UI IR，页面源码
 ├── components/              # 可复用组件 IR
+├── app.config.yaml          # App 标识、平台、权限和链接源码
 ├── schema/                  # IR schema，限制可用 UI 能力
 ├── theme/                   # 设计 token
 ├── compiler/                # 确定性编译器和 CLI

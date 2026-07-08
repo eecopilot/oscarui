@@ -1,0 +1,42 @@
+app:
+  name: OscarUI
+  displayName: OscarUI
+  bundleId: app.generated.OscarUI
+  applicationId: app.generated.oscarui
+  versionName: "1.0"
+  versionCode: 1
+
+platform:
+  ios:
+    deploymentTarget: "17.0"
+  android:
+    compileSdk: 35
+    minSdk: 23
+    targetSdk: 35
+
+permissions:
+  camera:
+    enabled: false
+  photoLibrary:
+    enabled: false
+  locationWhenInUse:
+    enabled: false
+  microphone:
+    enabled: false
+  notifications:
+    enabled: false
+
+privacy:
+  cameraUsage: ""
+  photoLibraryUsage: ""
+  locationWhenInUseUsage: ""
+  microphoneUsage: ""
+
+links:
+  urlSchemes: []
+  universalLinks: []
+  androidAppLinks: []
+
+orientation:
+  phone: portrait
+  tablet: all

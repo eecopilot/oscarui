@@ -17,13 +17,48 @@ import { diffSnapshots } from './snapshot-diff.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const SCHEMA = JSON.parse(fs.readFileSync(path.join(ROOT, 'schema/ui-ir.schema.json'), 'utf8'));
+const APP_CONFIG_SCHEMA = JSON.parse(fs.readFileSync(path.join(ROOT, 'schema/app-config.schema.json'), 'utf8'));
 const PLUGIN_SCHEMA = JSON.parse(fs.readFileSync(path.join(ROOT, 'schema/plugin.schema.json'), 'utf8'));
 const ajv = new Ajv({ allErrors: true, allowUnionTypes: true, discriminator: true });
 const validateSchema = ajv.compile(SCHEMA);
+const validateAppConfigSchema = ajv.compile(APP_CONFIG_SCHEMA);
 const validatePluginSchema = ajv.compile(PLUGIN_SCHEMA);
 
 function loadTokens() {
   return YAML.parse(fs.readFileSync(path.join(ROOT, 'theme/tokens.yaml'), 'utf8'));
+}
+
+export function loadAppConfig(root = ROOT) {
+  const file = path.join(root, 'app.config.yaml');
+  if (!fs.existsSync(file)) throw new Error('app.config.yaml is required');
+  return YAML.parse(fs.readFileSync(file, 'utf8'));
+}
+
+function appConfigProblems(config) {
+  const problems = [];
+  const privacy = config.privacy ?? {};
+  const permissions = config.permissions ?? {};
+  const requiredUsage = [
+    ['camera', 'cameraUsage'],
+    ['photoLibrary', 'photoLibraryUsage'],
+    ['locationWhenInUse', 'locationWhenInUseUsage'],
+    ['microphone', 'microphoneUsage'],
+  ];
+
+  for (const [permission, usageKey] of requiredUsage) {
+    if (permissions[permission]?.enabled && !String(privacy[usageKey] ?? '').trim()) {
+      problems.push(`permission "${permission}" requires privacy.${usageKey}`);
+    }
+  }
+
+  if ((config.platform?.android?.minSdk ?? 0) > (config.platform?.android?.targetSdk ?? 0)) {
+    problems.push('platform.android.minSdk cannot be greater than targetSdk');
+  }
+  if ((config.platform?.android?.targetSdk ?? 0) > (config.platform?.android?.compileSdk ?? 0)) {
+    problems.push('platform.android.targetSdk cannot be greater than compileSdk');
+  }
+
+  return problems;
 }
 
 function loadScreens() {
@@ -259,11 +294,26 @@ function validate() {
   const screens = loadScreens();
   const components = loadComponents();
   const tokens = loadTokens();
+  const appConfig = loadAppConfig();
   if (!screens.length) {
     console.error('no .ui.yaml files found in screens/');
     process.exit(1);
   }
   let failed = false;
+  const appConfigErrors = [];
+  if (!validateAppConfigSchema(appConfig)) {
+    for (const e of validateAppConfigSchema.errors)
+      appConfigErrors.push(`${e.instancePath || '/'} ${e.message}`);
+  } else {
+    appConfigErrors.push(...appConfigProblems(appConfig));
+  }
+  if (appConfigErrors.length) {
+    failed = true;
+    console.error('✗ app.config.yaml');
+    for (const p of appConfigErrors) console.error(`    ${p}`);
+  } else {
+    console.log('✓ app.config.yaml');
+  }
   const tokenProblems = themeProblems(tokens);
   if (tokenProblems.length) {
     failed = true;
@@ -333,6 +383,7 @@ function validate() {
 
 function build() {
   const { screens, components } = validate();
+  const appConfig = loadAppConfig();
   const tokens = loadTokens();
   const nativeCreated = ensureNativeActionStubs(ROOT, screens);
 
@@ -366,7 +417,7 @@ function build() {
     console.log(`→ ${file}`);
   }
 
-  return screens;
+  return { screens, appConfig };
 }
 
 function validatePlugins() {
@@ -414,25 +465,25 @@ else if (cmd === 'plugins:validate') validatePlugins();
 else if (cmd === 'doctor:ios') doctorIos() || process.exit(1);
 else if (cmd === 'doctor:android') doctorAndroid() || process.exit(1);
 else if (cmd === 'dry-run:ios') {
-  build();
-  dryRunIos(ROOT);
+  const { appConfig } = build();
+  dryRunIos(ROOT, appConfig);
 }
 else if (cmd === 'dev:ios') {
-  build();
-  devIos(ROOT);
+  const { appConfig } = build();
+  devIos(ROOT, appConfig);
 }
 else if (cmd === 'dry-run:android') {
-  const screens = build();
-  dryRunAndroid(ROOT, screens);
+  const { screens, appConfig } = build();
+  dryRunAndroid(ROOT, screens, appConfig);
 }
 else if (cmd === 'dev:android') {
-  const screens = build();
-  devAndroid(ROOT, screens);
+  const { screens, appConfig } = build();
+  devAndroid(ROOT, screens, appConfig);
 }
 else if (cmd === 'snapshots') {
-  const screens = build();
-  devIos(ROOT);
-  devAndroid(ROOT, screens);
+  const { screens, appConfig } = build();
+  devIos(ROOT, appConfig);
+  devAndroid(ROOT, screens, appConfig);
   captureSnapshots(ROOT, screens);
 }
 else {

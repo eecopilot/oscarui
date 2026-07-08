@@ -1,0 +1,108 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "app-config.schema.json",
+  "title": "OscarUI App Config",
+  "type": "object",
+  "required": ["app", "platform"],
+  "additionalProperties": false,
+  "properties": {
+    "app": {
+      "type": "object",
+      "required": ["name", "displayName", "bundleId", "applicationId", "versionName", "versionCode"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+        "displayName": { "type": "string", "minLength": 1 },
+        "bundleId": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9]*(\\.[A-Za-z][A-Za-z0-9]*)+$" },
+        "applicationId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$" },
+        "versionName": { "type": "string", "pattern": "^[0-9]+(\\.[0-9]+)*$" },
+        "versionCode": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "platform": {
+      "type": "object",
+      "required": ["ios", "android"],
+      "additionalProperties": false,
+      "properties": {
+        "ios": {
+          "type": "object",
+          "required": ["deploymentTarget"],
+          "additionalProperties": false,
+          "properties": {
+            "deploymentTarget": { "type": "string", "pattern": "^[0-9]+\\.[0-9]+$" }
+          }
+        },
+        "android": {
+          "type": "object",
+          "required": ["compileSdk", "minSdk", "targetSdk"],
+          "additionalProperties": false,
+          "properties": {
+            "compileSdk": { "type": "integer", "minimum": 23 },
+            "minSdk": { "type": "integer", "minimum": 21 },
+            "targetSdk": { "type": "integer", "minimum": 23 }
+          }
+        }
+      }
+    },
+    "permissions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "camera": { "$ref": "#/$defs/permission" },
+        "photoLibrary": { "$ref": "#/$defs/permission" },
+        "locationWhenInUse": { "$ref": "#/$defs/permission" },
+        "microphone": { "$ref": "#/$defs/permission" },
+        "notifications": { "$ref": "#/$defs/permission" }
+      }
+    },
+    "privacy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "cameraUsage": { "type": "string" },
+        "photoLibraryUsage": { "type": "string" },
+        "locationWhenInUseUsage": { "type": "string" },
+        "microphoneUsage": { "type": "string" }
+      }
+    },
+    "links": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "urlSchemes": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z][A-Za-z0-9+.-]*$" }, "uniqueItems": true },
+        "universalLinks": { "type": "array", "items": { "type": "string", "pattern": "^[A-Za-z0-9.-]+$" }, "uniqueItems": true },
+        "androidAppLinks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["host"],
+            "additionalProperties": false,
+            "properties": {
+              "host": { "type": "string", "pattern": "^[A-Za-z0-9.-]+$" },
+              "pathPrefix": { "type": "string" },
+              "autoVerify": { "type": "boolean" }
+            }
+          }
+        }
+      }
+    },
+    "orientation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "phone": { "enum": ["portrait", "landscape", "all"] },
+        "tablet": { "enum": ["portrait", "landscape", "all"] }
+      }
+    }
+  },
+  "$defs": {
+    "permission": {
+      "type": "object",
+      "required": ["enabled"],
+      "additionalProperties": false,
+      "properties": {
+        "enabled": { "type": "boolean" }
+      }
+    }
+  }
+}

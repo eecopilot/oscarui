@@ -59,6 +59,7 @@ For UI changes, edit these source files first:
 
 - `screens/*.ui.yaml`: screen structure and UI intent
 - `components/*.ui.yaml`: reusable UI component intent
+- `app.config.yaml`: app identity, platform settings, permissions, privacy strings, links, and orientation
 - `theme/tokens.yaml`: design tokens such as spacing, radius, color, typography, and size
 - `schema/ui-ir.schema.json`: the allowed IR contract
 - `compiler/*.mjs`: deterministic templates from IR to SwiftUI / Compose
@@ -199,6 +200,7 @@ This is the right place for login logic, navigation, API calls, token storage, a
 oscarui/
 ├── screens/                 # UI IR, the screen source of truth
 ├── components/              # Reusable component IR
+├── app.config.yaml          # App identity, platform, permission, and link source
 ├── schema/                  # IR schema, limits allowed UI capabilities
 ├── theme/                   # Design tokens
 ├── compiler/                # Deterministic compiler and CLI

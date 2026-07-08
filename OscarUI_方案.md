@@ -232,6 +232,7 @@ oscarui/
 │   └── login.ui.yaml         # 源码：人和 AI 只改这里
 ├── components/
 │   └── projectCard.ui.yaml   # 可复用组件 IR
+├── app.config.yaml            # App 标识、权限、链接和平台配置源码
 ├── native/
 │   ├── ios/                  # 手写 iOS Action 实现，不会被生成覆盖
 │   └── android/              # 手写 Android Action 实现，不会被生成覆盖
