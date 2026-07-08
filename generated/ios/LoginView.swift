@@ -65,7 +65,7 @@ struct LoginView: View {
                     .foregroundStyle(Theme.Colors.primary)
                 }
                 .padding(Theme.Spacing.normal)
-                    .frame(maxWidth: Theme.Size.contentCompact)
+                    .frame(maxWidth: Theme.Size.contentCompact, alignment: .center)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }

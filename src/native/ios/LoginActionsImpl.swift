@@ -3,8 +3,9 @@ import Foundation
 
 final class LoginActionsImpl: LoginActions {
     func login() {
-        print("Login.login")
+        print("OscarUI mock login accepted. Navigation is handled by the generated Login route.")
     }
+
     func forgotPassword() {
         print("Login.forgotPassword")
     }

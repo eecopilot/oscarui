@@ -88,6 +88,15 @@ function propLiteral(value, type, ctx) {
   return kotlinLiteral(value, type);
 }
 
+function textExpression(value, bind, ctx) {
+  if (bind) {
+    if (bind.startsWith('item.')) return `item.${bind.slice('item.'.length)}`;
+    if (ctx.bindings?.has(bind)) return bind;
+    return `${bind}.toString()`;
+  }
+  return `"${esc(value ?? '')}"`;
+}
+
 function listItemType(state) {
   return `${pascal(state.name)}Item`;
 }
@@ -114,6 +123,18 @@ function actionLines(action) {
   if (action.navigation?.type === 'push') lines.push(`navController.navigate("${action.navigation.screen}")`);
   if (action.navigation?.type === 'pop') lines.push('navController.popBackStack()');
   return lines;
+}
+
+function actionInvocation(actionName, ctx) {
+  if (ctx.actionProps?.has(actionName)) return `${actionName}()`;
+  return actionLines(ctx.actions.get(actionName)).join('; ');
+}
+
+function emitsGroupedRow(node, ctx) {
+  if (node.type === 'listRow') return true;
+  if (node.type !== 'component') return false;
+  const component = ctx.components.get(node.name);
+  return component?.body?.length === 1 && component.body[0]?.type === 'listRow';
 }
 
 function emitRawNode(node, ctx) {
@@ -164,8 +185,7 @@ function emitRawNode(node, ctx) {
     }
     case 'button': {
       const role = node.role ?? 'primary';
-      const action = ctx.actions.get(node.action);
-      const call = ctx.actionProps?.has(node.action) ? `${node.action}()` : actionLines(action).join('; ');
+      const call = actionInvocation(node.action, ctx);
       const commonArgs = [
         `onClick = { ${call} }`,
         'modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth)',
@@ -214,6 +234,53 @@ function emitRawNode(node, ctx) {
         '}',
       ];
     }
+    case 'listRow': {
+      const call = actionInvocation(node.action, ctx);
+      const modifier = [
+        'Modifier.fillMaxWidth()',
+        '.background(Theme.Colors.listRowBackground)',
+        `.clickable { ${call} }`,
+        '.heightIn(min = Theme.Size.listRowMinHeight)',
+        '.padding(horizontal = Theme.Spacing.normal, vertical = Theme.Spacing.tight)',
+      ].join('');
+      const lines = [
+        'Row(',
+        ...indent([
+          `modifier = ${modifier}`,
+          'verticalAlignment = Alignment.CenterVertically',
+          'horizontalArrangement = Arrangement.spacedBy(Theme.Spacing.normal)',
+        ].map((a, i, arr) => a + (i < arr.length - 1 ? ',' : '')), 1),
+        ') {',
+        '    Column(',
+        '        modifier = Modifier.weight(1f),',
+        '        verticalArrangement = Arrangement.spacedBy(Theme.Spacing.tight)',
+        '    ) {',
+        '        Text(',
+        `            text = ${textExpression(node.title, node.titleBind, ctx)},`,
+        '            style = Theme.Typography.body,',
+        '            color = Theme.Colors.textPrimary',
+        '        )',
+      ];
+      if (node.subtitle || node.subtitleBind) {
+        lines.push(
+          '        Text(',
+          `            text = ${textExpression(node.subtitle, node.subtitleBind, ctx)},`,
+          '            style = Theme.Typography.caption,',
+          '            color = Theme.Colors.textSecondary',
+          '        )'
+        );
+      }
+      lines.push(
+        '    }',
+        '    Text(',
+        '        text = "›",',
+        '        style = Theme.Typography.heading,',
+        '        color = Theme.Colors.chevron',
+        '    )',
+        '}'
+      );
+      return lines;
+    }
     case 'component': {
       const lines = [`${node.name}(`];
       const args = Object.entries(node.props ?? {}).map(([name, value]) => {
@@ -251,13 +318,30 @@ function emitRawNode(node, ctx) {
       ];
     }
     case 'list': {
+      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx);
       const lines = [
-        `LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.Spacing.${node.spacing ?? 'normal'})) {`,
-        `    items(${node.bind}) { item ->`,
+        'LazyColumn(',
+        ...indent([
+          `verticalArrangement = Arrangement.spacedBy(${groupedRows ? '0.dp' : `Theme.Spacing.${node.spacing ?? 'normal'}`})`,
+          ...(groupedRows ? ['modifier = Modifier.clip(RoundedCornerShape(Theme.Radius.normal)).background(Theme.Colors.listRowBackground)'] : []),
+        ].map((a, i, arr) => a + (i < arr.length - 1 ? ',' : '')), 1),
+        ') {',
+        `    itemsIndexed(${node.bind}) { index, item ->`,
       ];
       const inner = [];
       for (const child of node.itemTemplate) inner.push(...emitNode(child, { ...ctx, isRootContent: false }));
       lines.push(...indent(inner, 2));
+      if (groupedRows) {
+        lines.push(
+          `        if (index < ${node.bind}.lastIndex) {`,
+          '            HorizontalDivider(',
+          '                modifier = Modifier.padding(start = Theme.Spacing.normal),',
+          '                color = Theme.Colors.border,',
+          '                thickness = Theme.Size.borderWidth',
+          '            )',
+          '        }'
+        );
+      }
       lines.push('    }', '}');
       return lines;
     }
@@ -311,9 +395,10 @@ function componentImports() {
     '',
     'import androidx.compose.foundation.BorderStroke',
     'import androidx.compose.foundation.background',
+    'import androidx.compose.foundation.clickable',
     'import androidx.compose.foundation.layout.*',
     'import androidx.compose.foundation.lazy.LazyColumn',
-    'import androidx.compose.foundation.lazy.items',
+    'import androidx.compose.foundation.lazy.itemsIndexed',
     'import androidx.compose.foundation.shape.RoundedCornerShape',
     'import androidx.compose.material3.*',
     'import androidx.compose.runtime.*',

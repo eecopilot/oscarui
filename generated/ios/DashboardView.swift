@@ -3,7 +3,6 @@ import SwiftUI
 
 protocol DashboardActions {
     func selectProject()
-    func goBack()
 }
 
 struct DashboardView: View {
@@ -26,7 +25,7 @@ struct DashboardView: View {
             ZStack(alignment: .topLeading) {
                 Theme.Colors.background
                     .ignoresSafeArea()
-                VStack(alignment: .leading, spacing: Theme.Spacing.loose) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.normal) {
                     Text("OscarUI")
                         .font(Theme.Typography.title)
                         .foregroundStyle(Theme.Colors.textPrimary)
@@ -38,32 +37,24 @@ struct DashboardView: View {
                             .font(Theme.Typography.body)
                             .foregroundStyle(Theme.Colors.textSecondary)
                     }
-                    VStack(alignment: .leading, spacing: Theme.Spacing.normal) {
+                    VStack(alignment: .leading, spacing: 0) {
                         ForEach(projects) { item in
                             ProjectCardView(
                                 title: item.name,
                                 subtitle: item.platform,
                                 onSelect: { actions.selectProject() }
                             )
+                            if item.id != projects.last?.id {
+                                Divider()
+                                    .padding(.leading, Theme.Spacing.normal)
+                            }
                         }
                     }
-                    Button {
-                        actions.goBack()
-                        router.pop()
-                    } label: {
-                        Text("Back")
-                            .font(Theme.Typography.body)
-                            .frame(minWidth: Theme.Size.buttonMinWidth)
-                            .frame(height: Theme.Size.controlHeight)
-                            .padding(.horizontal, Theme.Spacing.normal)
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(Theme.Colors.primary)
-                    .background(Theme.Colors.fieldBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.large))
-                    .overlay(RoundedRectangle(cornerRadius: Theme.Radius.large).stroke(Theme.Colors.border, lineWidth: Theme.Size.borderWidth))
+                    .background(Theme.Colors.listRowBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))
+                    .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.normal))
                 }
                 .padding(Theme.Spacing.normal)
-                    .frame(maxWidth: Theme.Size.contentNormal)
+                    .frame(maxWidth: Theme.Size.contentNormal, alignment: .leading)
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
         }

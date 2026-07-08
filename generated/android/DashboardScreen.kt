@@ -3,9 +3,10 @@ package app.generated
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -28,7 +29,6 @@ data class ProjectsItem(
 
 interface DashboardActions {
     fun selectProject()
-    fun goBack()
 }
 
 @Composable
@@ -45,7 +45,7 @@ fun DashboardScreen(actions: DashboardActions, navController: NavHostController)
     ) {
         Column(
             modifier = Modifier.widthIn(max = Theme.Size.contentNormal).fillMaxWidth().padding(Theme.Spacing.normal),
-            verticalArrangement = Arrangement.spacedBy(Theme.Spacing.loose),
+            verticalArrangement = Arrangement.spacedBy(Theme.Spacing.normal),
             horizontalAlignment = Alignment.Start
         ) {
             Text(
@@ -65,27 +65,24 @@ fun DashboardScreen(actions: DashboardActions, navController: NavHostController)
                     color = Theme.Colors.textSecondary
                 )
             }
-            LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.Spacing.normal)) {
-                items(projects) { item ->
+            LazyColumn(
+                verticalArrangement = Arrangement.spacedBy(0.dp),
+                modifier = Modifier.clip(RoundedCornerShape(Theme.Radius.normal)).background(Theme.Colors.listRowBackground)
+            ) {
+                itemsIndexed(projects) { index, item ->
                     ProjectCard(
                         title = item.name,
                         subtitle = item.platform,
                         onSelect = { actions.selectProject() }
                     )
+                    if (index < projects.lastIndex) {
+                        HorizontalDivider(
+                            modifier = Modifier.padding(start = Theme.Spacing.normal),
+                            color = Theme.Colors.border,
+                            thickness = Theme.Size.borderWidth
+                        )
+                    }
                 }
-            }
-            OutlinedButton(
-                onClick = { actions.goBack(); navController.popBackStack() },
-                modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth),
-                contentPadding = PaddingValues(horizontal = Theme.Spacing.normal),
-                shape = RoundedCornerShape(Theme.Radius.large),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Theme.Colors.primary),
-                border = BorderStroke(Theme.Size.borderWidth, Theme.Colors.border)
-            ) {
-                Text(
-                    text = "Back",
-                    style = Theme.Typography.body
-                )
             }
         }
     }

@@ -3,9 +3,10 @@ package app.generated
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -26,32 +27,30 @@ fun ProjectCard(
     subtitle: String,
     onSelect: () -> Unit
 ) {
-    Column(
-        modifier = Modifier.padding(Theme.Spacing.normal),
-        verticalArrangement = Arrangement.spacedBy(Theme.Spacing.tight),
-        horizontalAlignment = Alignment.Start
+    Row(
+        modifier = Modifier.fillMaxWidth().background(Theme.Colors.listRowBackground).clickable { onSelect() }.heightIn(min = Theme.Size.listRowMinHeight).padding(horizontal = Theme.Spacing.normal, vertical = Theme.Spacing.tight),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(Theme.Spacing.normal)
     ) {
-        Text(
-            text = title.toString(),
-            style = Theme.Typography.heading,
-            color = Theme.Colors.textPrimary
-        )
-        Text(
-            text = subtitle.toString(),
-            style = Theme.Typography.caption,
-            color = Theme.Colors.textSecondary
-        )
-        TextButton(
-            onClick = { onSelect() },
-            modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth),
-            contentPadding = PaddingValues(horizontal = Theme.Spacing.normal),
-            shape = RoundedCornerShape(Theme.Radius.large),
-            colors = ButtonDefaults.textButtonColors(contentColor = Theme.Colors.primary)
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(Theme.Spacing.tight)
         ) {
             Text(
-                text = "Open",
-                style = Theme.Typography.body
+                text = title,
+                style = Theme.Typography.body,
+                color = Theme.Colors.textPrimary
+            )
+            Text(
+                text = subtitle,
+                style = Theme.Typography.caption,
+                color = Theme.Colors.textSecondary
             )
         }
+        Text(
+            text = "›",
+            style = Theme.Typography.heading,
+            color = Theme.Colors.chevron
+        )
     }
 }

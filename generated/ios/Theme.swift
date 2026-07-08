@@ -13,6 +13,7 @@ enum Theme {
         static let contentNormal: CGFloat = 480
         static let contentWide: CGFloat = 640
         static let controlHeight: CGFloat = 52
+        static let listRowMinHeight: CGFloat = 60
         static let buttonMinWidth: CGFloat = 96
         static let borderWidth: CGFloat = 1
     }
@@ -26,9 +27,11 @@ enum Theme {
         static let primary = Color(hex: "#3B82F6")
         static let background = Color(hex: "#FFFFFF")
         static let fieldBackground = Color(hex: "#FFFFFF")
+        static let listRowBackground = Color(hex: "#FFFFFF")
         static let border = Color(hex: "#D1D5DB")
         static let textPrimary = Color(hex: "#111827")
         static let textSecondary = Color(hex: "#6B7280")
+        static let chevron = Color(hex: "#9CA3AF")
         static let placeholder = Color(hex: "#9CA3AF")
         static let onPrimary = Color(hex: "#FFFFFF")
     }

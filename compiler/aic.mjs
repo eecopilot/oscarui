@@ -230,9 +230,9 @@ function hasToken(tokens, group, name) {
 function themeProblems(tokens) {
   const required = {
     spacing: ['none', 'tight', 'normal', 'loose'],
-    size: ['contentCompact', 'contentNormal', 'contentWide', 'controlHeight', 'buttonMinWidth', 'borderWidth'],
+    size: ['contentCompact', 'contentNormal', 'contentWide', 'controlHeight', 'listRowMinHeight', 'buttonMinWidth', 'borderWidth'],
     radius: ['none', 'small', 'normal', 'large'],
-    color: ['primary', 'background', 'fieldBackground', 'border', 'textPrimary', 'textSecondary', 'placeholder', 'onPrimary'],
+    color: ['primary', 'background', 'fieldBackground', 'listRowBackground', 'border', 'textPrimary', 'textSecondary', 'chevron', 'placeholder', 'onPrimary'],
     typography: ['title', 'heading', 'body', 'caption'],
   };
   const problems = [];
@@ -328,14 +328,23 @@ function semanticCheck(ir, tokens, screenNames, componentNames, componentsByName
     else if (value.type === 'list' || value.type === 'action') errors.push(`text bind "${node.bind}" must reference scalar state or prop`);
   }
 
+  function checkListRowBinding(node, listContext, key) {
+    const binding = node[key];
+    if (node.type !== 'listRow' || !binding) return;
+    if (listFieldProblem(binding, listContext, `listRow ${key}`)) return;
+    const value = stateNames.get(binding) ?? propNames.get(binding);
+    if (!value) errors.push(`listRow ${key} references undeclared state or prop "${binding}"`);
+    else if (value.type === 'list' || value.type === 'action') errors.push(`listRow ${key} "${binding}" must reference scalar state or prop`);
+  }
+
   function checkActionReference(node) {
-    if (node.type !== 'button') return;
+    if (node.type !== 'button' && node.type !== 'listRow') return;
     if (actionNames.has(node.action)) return;
     const prop = propNames.get(node.action);
     if (!prop) {
-      errors.push(`button references undeclared action or action prop "${node.action}"`);
+      errors.push(`${node.type} references undeclared action or action prop "${node.action}"`);
     } else if (prop.type !== 'action') {
-      errors.push(`button action "${node.action}" must reference action prop`);
+      errors.push(`${node.type} action "${node.action}" must reference action prop`);
     }
   }
 
@@ -390,6 +399,8 @@ function semanticCheck(ir, tokens, screenNames, componentNames, componentsByName
     if (node.type === 'text' && node.role && !hasToken(tokens, 'typography', node.role))
       errors.push(`text references missing typography token "${node.role}"`);
     checkTextBinding(node, listContext);
+    checkListRowBinding(node, listContext, 'titleBind');
+    checkListRowBinding(node, listContext, 'subtitleBind');
     checkComponentCall(node, listContext);
 
     if (node.type === 'textField' && !stateNames.has(node.bind)) {

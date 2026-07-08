@@ -75,9 +75,16 @@ function screenAlignment(layout, fallback) {
   return fallback;
 }
 
-function contentWidthModifier(layout) {
+function horizontalFrameAlignment(node) {
+  if (node?.type === 'column' || node?.type === 'row') {
+    return { start: '.leading', center: '.center', end: '.trailing' }[node.align ?? 'center'];
+  }
+  return '.center';
+}
+
+function contentWidthModifier(layout, alignment = '.center') {
   if (layout.contentWidth === 'fill') return null;
-  return `.frame(maxWidth: Theme.Size.content${pascal(layout.contentWidth)})`;
+  return `.frame(maxWidth: Theme.Size.content${pascal(layout.contentWidth)}, alignment: ${alignment})`;
 }
 
 function swiftLiteral(value, type) {
@@ -106,6 +113,15 @@ function propLiteral(value, type, ctx) {
   return swiftLiteral(value, type);
 }
 
+function textExpression(value, bind, ctx) {
+  if (bind) {
+    if (bind.startsWith('item.')) return `item.${bind.slice('item.'.length)}`;
+    if (ctx.bindings?.has(bind)) return bind;
+    return `String(${bind})`;
+  }
+  return `"${esc(value ?? '')}"`;
+}
+
 function applyVisibility(lines, node) {
   if (!node.visibleWhen) return lines;
   return [`if ${conditionExpression(node.visibleWhen)} {`, ...indent(lines, 1), '}'];
@@ -116,6 +132,18 @@ function actionLines(action, ctx) {
   if (action.navigation?.type === 'push') lines.push(`router.push(.${camel(action.navigation.screen)})`);
   if (action.navigation?.type === 'pop') lines.push('router.pop()');
   return lines;
+}
+
+function actionInvocationLines(actionName, ctx) {
+  if (ctx.actionProps?.has(actionName)) return [`${actionName}()`];
+  return actionLines(ctx.actions.get(actionName), ctx);
+}
+
+function emitsGroupedRow(node, ctx) {
+  if (node.type === 'listRow') return true;
+  if (node.type !== 'component') return false;
+  const component = ctx.components.get(node.name);
+  return component?.body?.length === 1 && component.body[0]?.type === 'listRow';
 }
 
 function emitRawNode(node, ctx) {
@@ -156,10 +184,9 @@ function emitRawNode(node, ctx) {
     }
     case 'button': {
       const role = node.role ?? 'primary';
-      const action = ctx.actions.get(node.action);
       const lines = [
         'Button {',
-        ...indent(ctx.actionProps?.has(node.action) ? [`${node.action}()`] : actionLines(action, ctx), 1),
+        ...indent(actionInvocationLines(node.action, ctx), 1),
         '} label: {',
         `    Text("${esc(node.label)}")`,
         '        .font(Theme.Typography.body)',
@@ -185,6 +212,41 @@ function emitRawNode(node, ctx) {
       }
       return lines;
     }
+    case 'listRow': {
+      const lines = [
+        'Button {',
+        ...indent(actionInvocationLines(node.action, ctx), 1),
+        '} label: {',
+        '    HStack(alignment: .center, spacing: Theme.Spacing.normal) {',
+        '        VStack(alignment: .leading, spacing: Theme.Spacing.tight) {',
+        `            Text(${textExpression(node.title, node.titleBind, ctx)})`,
+        '                .font(Theme.Typography.body)',
+        '                .foregroundStyle(Theme.Colors.textPrimary)',
+      ];
+      if (node.subtitle || node.subtitleBind) {
+        lines.push(
+          `            Text(${textExpression(node.subtitle, node.subtitleBind, ctx)})`,
+          '                .font(Theme.Typography.caption)',
+          '                .foregroundStyle(Theme.Colors.textSecondary)'
+        );
+      }
+      lines.push(
+        '        }',
+        '        Spacer()',
+        '        Image(systemName: "chevron.right")',
+        '            .font(.system(size: 13, weight: .semibold))',
+        '            .foregroundStyle(Theme.Colors.chevron)',
+        '    }',
+        '    .padding(.horizontal, Theme.Spacing.normal)',
+        '    .padding(.vertical, Theme.Spacing.tight)',
+        '    .frame(maxWidth: .infinity, minHeight: Theme.Size.listRowMinHeight, alignment: .leading)',
+        '    .contentShape(Rectangle())',
+        '}',
+        '.buttonStyle(.plain)',
+        '.background(Theme.Colors.listRowBackground)'
+      );
+      return lines;
+    }
     case 'textField': {
       const ph = esc(node.placeholder ?? '');
       const field = node.secure
@@ -204,14 +266,29 @@ function emitRawNode(node, ctx) {
       return lines;
     }
     case 'list': {
+      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx);
       const lines = [
-        `VStack(alignment: .leading, spacing: Theme.Spacing.${node.spacing ?? 'normal'}) {`,
+        `VStack(alignment: .leading, spacing: ${groupedRows ? '0' : `Theme.Spacing.${node.spacing ?? 'normal'}`}) {`,
         `    ForEach(${node.bind}) { item in`,
       ];
       const inner = [];
       for (const child of node.itemTemplate) inner.push(...emitNode(child, { ...ctx, isRootContent: false }));
       lines.push(...indent(inner, 2));
+      if (groupedRows) {
+        lines.push(
+          `        if item.id != ${node.bind}.last?.id {`,
+          '            Divider()',
+          '                .padding(.leading, Theme.Spacing.normal)',
+          '        }'
+        );
+      }
       lines.push('    }', '}');
+      if (groupedRows) {
+        lines.push(
+          '.background(Theme.Colors.listRowBackground, in: RoundedRectangle(cornerRadius: Theme.Radius.normal))',
+          '.clipShape(RoundedRectangle(cornerRadius: Theme.Radius.normal))'
+        );
+      }
       return lines;
     }
     case 'component': {
@@ -302,12 +379,13 @@ export function emitScreenSwift(ir, components = []) {
   const content = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
   const fallbackAlignment = rootAlignment(ir.body.length === 1 ? ir.body[0] : undefined);
   const alignment = screenAlignment(layout, fallbackAlignment);
+  const frameAlignment = horizontalFrameAlignment(ir.body.length === 1 ? ir.body[0] : undefined);
   lines.push('        GeometryReader { proxy in');
   lines.push(`            ZStack(alignment: ${alignment}) {`);
   lines.push('                Theme.Colors.background');
   lines.push('                    .ignoresSafeArea()');
   lines.push(...indent(content, 4));
-  const width = contentWidthModifier(layout);
+  const width = contentWidthModifier(layout, frameAlignment);
   if (width) lines.push(`                    ${width}`);
   lines.push('            }');
   lines.push('            .frame(width: proxy.size.width, height: proxy.size.height)');

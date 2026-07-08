@@ -5,8 +5,9 @@ import android.util.Log
 
 class LoginActionsImpl : LoginActions {
     override fun login() {
-        Log.d("OscarUI", "Login.login")
+        Log.d("OscarUI", "Mock login accepted. Navigation is handled by the generated Login route.")
     }
+
     override fun forgotPassword() {
         Log.d("OscarUI", "Login.forgotPassword")
     }

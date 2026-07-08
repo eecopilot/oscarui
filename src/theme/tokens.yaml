@@ -9,6 +9,7 @@ size:
   contentNormal: 480
   contentWide: 640
   controlHeight: 52
+  listRowMinHeight: 60
   buttonMinWidth: 96
   borderWidth: 1
 
@@ -22,9 +23,11 @@ color:
   primary: "#3B82F6"
   background: "#FFFFFF"
   fieldBackground: "#FFFFFF"
+  listRowBackground: "#FFFFFF"
   border: "#D1D5DB"
   textPrimary: "#111827"
   textSecondary: "#6B7280"
+  chevron: "#9CA3AF"
   placeholder: "#9CA3AF"
   onPrimary: "#FFFFFF"
 

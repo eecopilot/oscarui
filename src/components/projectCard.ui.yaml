@@ -9,19 +9,7 @@ props:
     type: action
 
 body:
-  - type: column
-    spacing: tight
-    padding: normal
-    align: start
-    children:
-      - type: text
-        role: heading
-        bind: title
-      - type: text
-        role: caption
-        bind: subtitle
-        color: textSecondary
-      - type: button
-        role: ghost
-        label: Open
-        action: onSelect
+  - type: listRow
+    titleBind: title
+    subtitleBind: subtitle
+    action: onSelect

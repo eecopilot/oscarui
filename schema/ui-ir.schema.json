@@ -169,6 +169,7 @@
         { "$ref": "#/$defs/button" },
         { "$ref": "#/$defs/textField" },
         { "$ref": "#/$defs/list" },
+        { "$ref": "#/$defs/listRow" },
         { "$ref": "#/$defs/componentNode" },
         { "$ref": "#/$defs/componentRef" },
         { "$ref": "#/$defs/spacer" }
@@ -264,6 +265,25 @@
         "bind": { "type": "string" },
         "itemTemplate": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
       }
+    },
+    "listRow": {
+      "type": "object",
+      "required": ["type", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "listRow" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "title": { "type": "string" },
+        "titleBind": { "$ref": "#/$defs/textBinding" },
+        "subtitle": { "type": "string" },
+        "subtitleBind": { "$ref": "#/$defs/textBinding" },
+        "action": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" }
+      },
+      "oneOf": [
+        { "required": ["title"], "not": { "required": ["titleBind"] } },
+        { "required": ["titleBind"], "not": { "required": ["title"] } }
+      ],
+      "not": { "required": ["subtitle", "subtitleBind"] }
     },
     "spacer": {
       "type": "object",

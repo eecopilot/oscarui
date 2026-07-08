@@ -7,25 +7,29 @@ struct ProjectCardView: View {
     let onSelect: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
-            Text(String(title))
-                .font(Theme.Typography.heading)
-                .foregroundStyle(Theme.Colors.textPrimary)
-            Text(String(subtitle))
-                .font(Theme.Typography.caption)
-                .foregroundStyle(Theme.Colors.textSecondary)
-            Button {
-                onSelect()
-            } label: {
-                Text("Open")
-                    .font(Theme.Typography.body)
-                    .frame(minWidth: Theme.Size.buttonMinWidth)
-                    .frame(height: Theme.Size.controlHeight)
-                    .padding(.horizontal, Theme.Spacing.normal)
+        Button {
+            onSelect()
+        } label: {
+            HStack(alignment: .center, spacing: Theme.Spacing.normal) {
+                VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
+                    Text(title)
+                        .font(Theme.Typography.body)
+                        .foregroundStyle(Theme.Colors.textPrimary)
+                    Text(subtitle)
+                        .font(Theme.Typography.caption)
+                        .foregroundStyle(Theme.Colors.textSecondary)
+                }
+                Spacer()
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.Colors.chevron)
             }
-            .buttonStyle(.plain)
-            .foregroundStyle(Theme.Colors.primary)
+            .padding(.horizontal, Theme.Spacing.normal)
+            .padding(.vertical, Theme.Spacing.tight)
+            .frame(maxWidth: .infinity, minHeight: Theme.Size.listRowMinHeight, alignment: .leading)
+            .contentShape(Rectangle())
         }
-        .padding(Theme.Spacing.normal)
+        .buttonStyle(.plain)
+        .background(Theme.Colors.listRowBackground)
     }
 }

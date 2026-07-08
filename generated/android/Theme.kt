@@ -19,6 +19,7 @@ object Theme {
         val contentNormal = 480.dp
         val contentWide = 640.dp
         val controlHeight = 52.dp
+        val listRowMinHeight = 60.dp
         val buttonMinWidth = 96.dp
         val borderWidth = 1.dp
     }
@@ -32,9 +33,11 @@ object Theme {
         val primary = Color(0xFF3B82F6)
         val background = Color(0xFFFFFFFF)
         val fieldBackground = Color(0xFFFFFFFF)
+        val listRowBackground = Color(0xFFFFFFFF)
         val border = Color(0xFFD1D5DB)
         val textPrimary = Color(0xFF111827)
         val textSecondary = Color(0xFF6B7280)
+        val chevron = Color(0xFF9CA3AF)
         val placeholder = Color(0xFF9CA3AF)
         val onPrimary = Color(0xFFFFFFFF)
     }

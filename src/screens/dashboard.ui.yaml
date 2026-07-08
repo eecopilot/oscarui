@@ -26,7 +26,7 @@ state:
 
 body:
   - type: column
-    spacing: loose
+    spacing: normal
     padding: normal
     align: start
     children:
@@ -50,15 +50,7 @@ body:
         title: project.name
         subtitle: project.platform
         onSelect: selectProject
-      - type: button
-        role: secondary
-        label: Back
-        action: goBack
 
 actions:
   - name: selectProject
     steps: [select]
-  - name: goBack
-    steps: [navigate]
-    navigation:
-      type: pop
