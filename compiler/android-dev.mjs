@@ -1,5 +1,3 @@
-import { execFileSync, spawn } from 'node:child_process';
-import fs from 'node:fs';
 import path from 'node:path';
 import {
   ANDROID_GRADLE_VERSION,
@@ -9,183 +7,17 @@ import {
   formatCommand,
   prepareAndroidHost,
 } from './android-host.mjs';
-
-function isExecutable(file) {
-  try {
-    fs.accessSync(file, fs.constants.X_OK);
-    return true;
-  } catch {
-    return false;
-  }
-}
-
-function androidEnv() {
-  const androidHome = defaultAndroidHome();
-  const javaHome = detectJava17Home();
-  const extraPath = [
-    path.join(androidHome, 'cmdline-tools/latest/bin'),
-    path.join(androidHome, 'platform-tools'),
-    path.join(androidHome, 'emulator'),
-  ].filter(Boolean);
-
-  return {
-    ...process.env,
-    ANDROID_HOME: androidHome || process.env.ANDROID_HOME,
-    ANDROID_SDK_ROOT: androidHome || process.env.ANDROID_SDK_ROOT,
-    JAVA_HOME: javaHome || process.env.JAVA_HOME,
-    PATH: [...extraPath, process.env.PATH].filter(Boolean).join(path.delimiter),
-  };
-}
-
-function findTool(name) {
-  const env = androidEnv();
-  const candidates = [
-    ...String(env.PATH ?? '').split(path.delimiter).map(dir => path.join(dir, name)),
-    `/opt/homebrew/bin/${name}`,
-  ];
-  return candidates.find(isExecutable) ?? '';
-}
-
-function run(command, args = [], options = {}) {
-  try {
-    return {
-      ok: true,
-      stdout: execFileSync(command, args, {
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: androidEnv(),
-        ...options,
-      }).trim(),
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      stdout: String(error.stdout ?? '').trim(),
-      stderr: String(error.stderr ?? error.message ?? '').trim(),
-    };
-  }
-}
-
-function runLogged(command, args, root) {
-  console.log(`$ ${formatCommand([command, args], root)}`);
-  execFileSync(command, args, {
-    stdio: 'inherit',
-    cwd: root,
-    env: androidEnv(),
-  });
-}
-
-function firstLine(text) {
-  return text.split('\n').find(Boolean) ?? '';
-}
-
-function installedPackages() {
-  const sdkmanager = findTool('sdkmanager');
-  if (!sdkmanager) return '';
-  return run(sdkmanager, ['--list_installed']).stdout;
-}
-
-function avdNames() {
-  const emulator = findTool('emulator');
-  if (!emulator) return [];
-  const result = run(emulator, ['-list-avds']);
-  if (!result.ok) return [];
-  return result.stdout.split('\n').map(line => line.trim()).filter(Boolean);
-}
-
-function gradleCacheRoot(root) {
-  return path.join(root, '.aic/android/.gradle-dist');
-}
-
-function cachedGradle(root) {
-  const gradle = path.join(gradleCacheRoot(root), `gradle-${ANDROID_GRADLE_VERSION}`, 'bin', 'gradle');
-  return isExecutable(gradle) ? gradle : '';
-}
-
-function ensureGradle(root) {
-  const cached = cachedGradle(root);
-  if (cached) return cached;
-
-  const globalGradle = findTool('gradle');
-  if (globalGradle) return globalGradle;
-
-  const curl = findTool('curl') || '/usr/bin/curl';
-  const unzip = findTool('unzip') || '/usr/bin/unzip';
-  if (!isExecutable(curl)) throw new Error('android dev: curl is required to download Gradle.');
-  if (!isExecutable(unzip)) throw new Error('android dev: unzip is required to unpack Gradle.');
-
-  const cacheRoot = gradleCacheRoot(root);
-  const zip = path.join(cacheRoot, `gradle-${ANDROID_GRADLE_VERSION}-bin.zip`);
-  const url = `https://services.gradle.org/distributions/gradle-${ANDROID_GRADLE_VERSION}-bin.zip`;
-
-  fs.mkdirSync(cacheRoot, { recursive: true });
-  console.log(`→ downloading Gradle ${ANDROID_GRADLE_VERSION} to .aic/android/.gradle-dist`);
-  execFileSync(curl, ['-L', '--fail', '-o', zip, url], { stdio: 'inherit', env: androidEnv() });
-  execFileSync(unzip, ['-q', '-o', zip, '-d', cacheRoot], { stdio: 'inherit', env: androidEnv() });
-
-  const gradle = cachedGradle(root);
-  if (!gradle) throw new Error('android dev: Gradle download completed but gradle executable was not found.');
-  return gradle;
-}
-
-function bootedDeviceSerial() {
-  const adb = findTool('adb');
-  if (!adb) return '';
-  const result = run(adb, ['devices']);
-  if (!result.ok) return '';
-  const line = result.stdout.split('\n').find(line => /\tdevice$/.test(line));
-  return line?.split(/\s+/)[0] ?? '';
-}
-
-function waitForAndroidBoot(root) {
-  const adb = findTool('adb');
-  runLogged(adb, ['wait-for-device'], root);
-
-  const started = Date.now();
-  while (Date.now() - started < 180_000) {
-    const booted = run(adb, ['shell', 'getprop', 'sys.boot_completed']);
-    if (booted.ok && booted.stdout.trim() === '1') return;
-    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 2000);
-  }
-  throw new Error('android dev: emulator did not finish booting within 180 seconds.');
-}
-
-function selectAndroidAvd(preferred = process.env.AIC_ANDROID_AVD) {
-  const avds = avdNames();
-  if (!avds.length) return '';
-  if (!preferred) return avds[0];
-  return avds.includes(preferred) ? preferred : '';
-}
-
-function ensureAndroidDevice(root, avdName = selectAndroidAvd()) {
-  const serial = bootedDeviceSerial();
-  if (serial) {
-    console.log(`✓ Android device already connected: ${serial}`);
-    return;
-  }
-
-  const emulator = findTool('emulator');
-  if (!emulator) throw new Error('android dev: emulator command not found.');
-  if (!avdName) {
-    const hint = process.env.AIC_ANDROID_AVD
-      ? ` AIC_ANDROID_AVD="${process.env.AIC_ANDROID_AVD}" did not match an installed AVD.`
-      : '';
-    throw new Error(`android dev: no Android AVD found.${hint} Create one with avdmanager first.`);
-  }
-  if (!avdNames().includes(avdName)) {
-    throw new Error(`android dev: AVD "${avdName}" not found. Create it with avdmanager first.`);
-  }
-
-  console.log(`$ ${formatCommand([emulator, ['-avd', avdName]], root)}`);
-  const child = spawn(emulator, ['-avd', avdName], {
-    detached: true,
-    stdio: 'ignore',
-    env: androidEnv(),
-  });
-  child.unref();
-
-  waitForAndroidBoot(root);
-}
+import { firstLine } from './dev/process.mjs';
+import {
+  avdNames,
+  ensureAndroidDevice,
+  ensureGradle,
+  findTool,
+  installedPackages,
+  isExecutable,
+  runAndroid,
+  runAndroidLogged,
+} from './dev/android-env.mjs';
 
 export function doctorAndroid() {
   const packages = installedPackages();
@@ -193,7 +25,7 @@ export function doctorAndroid() {
   const androidHome = defaultAndroidHome();
   const javaHome = detectJava17Home();
   const java = javaHome ? path.join(javaHome, 'bin/java') : findTool('java');
-  const javaVersion = java ? run(java, ['-version']) : { ok: false, stderr: 'java not found' };
+  const javaVersion = java ? runAndroid(java, ['-version']) : { ok: false, stderr: 'java not found' };
 
   checks.push({
     name: 'JDK 17',
@@ -254,11 +86,11 @@ export function devAndroid(root, screens, config) {
   const adb = findTool('adb');
 
   console.log('');
-  runLogged(gradle, ['--no-daemon', '--console=plain', '-p', path.join(root, '.aic/android'), ':app:assembleDebug'], root);
+  runAndroidLogged(gradle, ['--no-daemon', '--console=plain', '-p', path.join(root, '.aic/android'), ':app:assembleDebug'], root);
   ensureAndroidDevice(root);
-  runLogged(adb, ['install', '-r', apk], root);
+  runAndroidLogged(adb, ['install', '-r', apk], root);
   const startCommand = androidCommandPlan(root, undefined, config).at(-1);
-  runLogged(startCommand[0], startCommand[1], root);
+  runAndroidLogged(startCommand[0], startCommand[1], root);
 
   console.log('');
   console.log('Android app is running.');
