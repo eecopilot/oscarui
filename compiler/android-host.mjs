@@ -10,6 +10,22 @@ export const ANDROID_TARGET_SDK = 35;
 export const ANDROID_GRADLE_VERSION = '8.10.2';
 export const ANDROID_HOST_TEMPLATE = 'gradle-compose-android35-app';
 
+function androidConfig(config = {}) {
+  return {
+    appName: config.app?.name ?? ANDROID_APP_NAME,
+    displayName: config.app?.displayName ?? config.app?.name ?? ANDROID_APP_NAME,
+    applicationId: config.app?.applicationId ?? ANDROID_APPLICATION_ID,
+    namespace: ANDROID_NAMESPACE,
+    versionName: config.app?.versionName ?? '1.0',
+    versionCode: config.app?.versionCode ?? 1,
+    compileSdk: config.platform?.android?.compileSdk ?? ANDROID_COMPILE_SDK,
+    minSdk: config.platform?.android?.minSdk ?? ANDROID_MIN_SDK,
+    targetSdk: config.platform?.android?.targetSdk ?? ANDROID_TARGET_SDK,
+    permissions: config.permissions ?? {},
+    links: config.links ?? {},
+  };
+}
+
 function writeFile(file, contents) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, contents);
@@ -79,7 +95,8 @@ export function detectJava17Home() {
   return candidates.find(candidate => fs.existsSync(path.join(candidate, 'bin/java'))) ?? '';
 }
 
-function emitSettingsGradle() {
+function emitSettingsGradle(config = {}) {
+  const android = androidConfig(config);
   return `pluginManagement {
     repositories {
         google()
@@ -96,7 +113,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "${ANDROID_APP_NAME}"
+rootProject.name = "${android.appName}"
 include(":app")
 `;
 }
@@ -110,7 +127,8 @@ function emitRootBuildGradle() {
 `;
 }
 
-function emitAppBuildGradle() {
+function emitAppBuildGradle(config = {}) {
+  const android = androidConfig(config);
   return `plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -118,15 +136,15 @@ function emitAppBuildGradle() {
 }
 
 android {
-    namespace = "${ANDROID_NAMESPACE}"
-    compileSdk = ${ANDROID_COMPILE_SDK}
+    namespace = "${android.namespace}"
+    compileSdk = ${android.compileSdk}
 
     defaultConfig {
-        applicationId = "${ANDROID_APPLICATION_ID}"
-        minSdk = ${ANDROID_MIN_SDK}
-        targetSdk = ${ANDROID_TARGET_SDK}
-        versionCode = 1
-        versionName = "1.0"
+        applicationId = "${android.applicationId}"
+        minSdk = ${android.minSdk}
+        targetSdk = ${android.targetSdk}
+        versionCode = ${android.versionCode}
+        versionName = "${android.versionName}"
     }
 
     compileOptions {
@@ -149,6 +167,7 @@ dependencies {
     implementation("androidx.compose.material3:material3")
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("androidx.navigation:navigation-compose:2.8.4")
     implementation("io.coil-kt:coil-compose:2.7.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
@@ -220,10 +239,41 @@ function emitLocalProperties(androidHome) {
   return `sdk.dir=${androidHome.replace(/\\/g, '/')}\n`;
 }
 
-function emitManifest() {
+function xmlEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function androidPermissionNames(permissions = {}) {
+  const names = [];
+  if (permissions.camera?.enabled) names.push('android.permission.CAMERA');
+  if (permissions.microphone?.enabled) names.push('android.permission.RECORD_AUDIO');
+  if (permissions.locationWhenInUse?.enabled) names.push('android.permission.ACCESS_FINE_LOCATION');
+  if (permissions.photoLibrary?.enabled) names.push('android.permission.READ_MEDIA_IMAGES');
+  if (permissions.notifications?.enabled) names.push('android.permission.POST_NOTIFICATIONS');
+  return names;
+}
+
+function emitAndroidAppLinks(links = {}) {
+  return (links.androidAppLinks ?? []).map(link => `            <intent-filter${link.autoVerify === false ? '' : ' android:autoVerify="true"'}>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="https" android:host="${xmlEscape(link.host)}"${link.pathPrefix ? ` android:pathPrefix="${xmlEscape(link.pathPrefix)}"` : ''} />
+            </intent-filter>`).join('\n');
+}
+
+function emitManifest(config = {}) {
+  const android = androidConfig(config);
+  const permissions = androidPermissionNames(android.permissions).map(permission => `    <uses-permission android:name="${permission}" />`);
+  const appLinks = emitAndroidAppLinks(android.links);
   return `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+${permissions.length ? `${permissions.join('\n')}\n` : ''}
     <application
-        android:label="${ANDROID_APP_NAME}"
+        android:label="${xmlEscape(android.displayName)}"
         android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
@@ -232,6 +282,7 @@ function emitManifest() {
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
+${appLinks ? `${appLinks}\n` : ''}
         </activity>
     </application>
 </manifest>
@@ -245,8 +296,7 @@ function emitStyles() {
 `;
 }
 
-function emitMainActivity(entryScreen) {
-  const actionClass = `${entryScreen}ActionsImpl`;
+function emitMainActivity(entryScreen, screens) {
   const lines = [
     'package app.generated',
     '',
@@ -259,6 +309,9 @@ function emitMainActivity(entryScreen) {
     'import androidx.compose.material3.Surface',
     'import androidx.compose.runtime.Composable',
     'import androidx.compose.ui.Modifier',
+    'import androidx.navigation.compose.NavHost',
+    'import androidx.navigation.compose.composable',
+    'import androidx.navigation.compose.rememberNavController',
     '',
     'class MainActivity : ComponentActivity() {',
     '    override fun onCreate(savedInstanceState: Bundle?) {',
@@ -271,6 +324,7 @@ function emitMainActivity(entryScreen) {
     '',
     '@Composable',
     'private fun OscarUIRoot() {',
+    '    val navController = rememberNavController()',
     '    MaterialTheme {',
     '        Surface(',
     '            modifier = Modifier',
@@ -278,7 +332,13 @@ function emitMainActivity(entryScreen) {
     '                .background(Theme.Colors.background),',
     '            color = Theme.Colors.background',
     '        ) {',
-    `            ${entryScreen}Screen(actions = ${actionClass}())`,
+    `            NavHost(navController = navController, startDestination = "${entryScreen}") {`,
+    ...screens.map(screen => [
+      `                composable("${screen}") {`,
+      `                    ${screen}Screen(actions = ${screen}ActionsImpl(), navController = navController)`,
+      '                }',
+    ]).flat(),
+    '            }',
     '        }',
     '    }',
     '}',
@@ -286,7 +346,8 @@ function emitMainActivity(entryScreen) {
   return lines.join('\n');
 }
 
-export function prepareAndroidHost(root, screens) {
+export function prepareAndroidHost(root, screens, config = {}) {
+  const android = androidConfig(config);
   const androidRoot = path.join(root, '.aic/android');
   const appDir = path.join(androidRoot, 'app');
   const sourceDir = path.join(root, 'generated/android');
@@ -295,7 +356,8 @@ export function prepareAndroidHost(root, screens) {
   const javaHome = detectJava17Home();
   const entry = screens[0]?.ir;
 
-  if (!entry) throw new Error('android host: at least one screen is required');
+  const entryScreen = screens.find(({ ir }) => ir.entry)?.ir ?? entry;
+  if (!entryScreen) throw new Error('android host: at least one screen is required');
   if (!androidHome) throw new Error('android host: Android SDK not found. Set ANDROID_HOME.');
 
   resetPath(appDir);
@@ -304,18 +366,18 @@ export function prepareAndroidHost(root, screens) {
     ...copyGeneratedKotlin(root, sourceDir, packageDir),
     ...copyNativeKotlin(root, packageDir),
   ];
-  writeFile(path.join(androidRoot, 'settings.gradle.kts'), emitSettingsGradle());
+  writeFile(path.join(androidRoot, 'settings.gradle.kts'), emitSettingsGradle(config));
   writeFile(path.join(androidRoot, 'build.gradle.kts'), emitRootBuildGradle());
   writeFile(path.join(androidRoot, 'gradle.properties'), emitGradleProperties(javaHome));
   writeFile(path.join(androidRoot, 'local.properties'), emitLocalProperties(androidHome));
-  writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle());
-  writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest());
+  writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle(config));
+  writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest(config));
   writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles());
-  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entry.screen));
+  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entryScreen.screen, screens.map(({ ir }) => ir.screen)));
 
   return {
-    appName: ANDROID_APP_NAME,
-    applicationId: ANDROID_APPLICATION_ID,
+    appName: android.appName,
+    applicationId: android.applicationId,
     template: ANDROID_HOST_TEMPLATE,
     androidHome,
     androidRoot,
@@ -324,7 +386,8 @@ export function prepareAndroidHost(root, screens) {
   };
 }
 
-export function androidCommandPlan(root, avdName = process.env.AIC_ANDROID_AVD || 'oscarui_api35') {
+export function androidCommandPlan(root, avdName = process.env.AIC_ANDROID_AVD || 'oscarui_api35', config = {}) {
+  const android = androidConfig(config);
   const androidRoot = path.join(root, '.aic/android');
   const apk = path.join(androidRoot, 'app/build/outputs/apk/debug/app-debug.apk');
   return [
@@ -332,7 +395,7 @@ export function androidCommandPlan(root, avdName = process.env.AIC_ANDROID_AVD |
     ['emulator', ['-avd', avdName]],
     ['adb', ['wait-for-device']],
     ['adb', ['install', '-r', apk]],
-    ['adb', ['shell', 'am', 'start', '-n', `${ANDROID_APPLICATION_ID}/${ANDROID_NAMESPACE}.MainActivity`]],
+    ['adb', ['shell', 'am', 'start', '-n', `${android.applicationId}/${android.namespace}.MainActivity`]],
   ];
 }
 

@@ -7,6 +7,102 @@ const BUNDLE_ID = 'app.generated.OscarUI';
 const IOS_DEPLOYMENT_TARGET = '17.0';
 const IOS_HOST_TEMPLATE = 'xcode-26-swiftui-filesystem-synchronized-app';
 
+function iosConfig(config = {}) {
+  return {
+    appName: config.app?.name ?? APP_NAME,
+    displayName: config.app?.displayName ?? config.app?.name ?? APP_NAME,
+    bundleId: config.app?.bundleId ?? BUNDLE_ID,
+    versionName: config.app?.versionName ?? '1.0',
+    versionCode: String(config.app?.versionCode ?? 1),
+    deploymentTarget: config.platform?.ios?.deploymentTarget ?? IOS_DEPLOYMENT_TARGET,
+    permissions: config.permissions ?? {},
+    privacy: config.privacy ?? {},
+    links: config.links ?? {},
+    orientation: config.orientation ?? {},
+  };
+}
+
+function iosOrientations(value) {
+  if (value === 'landscape') return '"UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"';
+  if (value === 'all') return '"UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight"';
+  return '"UIInterfaceOrientationPortrait"';
+}
+
+function plistEscape(value) {
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+function emitInfoPlist(config = {}) {
+  const ios = iosConfig(config);
+  const privacyEntries = [];
+  if (ios.permissions.camera?.enabled) privacyEntries.push(['NSCameraUsageDescription', ios.privacy.cameraUsage]);
+  if (ios.permissions.photoLibrary?.enabled) privacyEntries.push(['NSPhotoLibraryUsageDescription', ios.privacy.photoLibraryUsage]);
+  if (ios.permissions.locationWhenInUse?.enabled) privacyEntries.push(['NSLocationWhenInUseUsageDescription', ios.privacy.locationWhenInUseUsage]);
+  if (ios.permissions.microphone?.enabled) privacyEntries.push(['NSMicrophoneUsageDescription', ios.privacy.microphoneUsage]);
+
+  const urlSchemes = ios.links.urlSchemes ?? [];
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+    '    <key>CFBundleDisplayName</key>',
+    `    <string>${plistEscape(ios.displayName)}</string>`,
+    '    <key>CFBundleShortVersionString</key>',
+    `    <string>${plistEscape(ios.versionName)}</string>`,
+    '    <key>CFBundleVersion</key>',
+    `    <string>${plistEscape(ios.versionCode)}</string>`,
+  ];
+
+  for (const [key, value] of privacyEntries) {
+    lines.push(`    <key>${key}</key>`, `    <string>${plistEscape(value)}</string>`);
+  }
+
+  if (urlSchemes.length) {
+    lines.push(
+      '    <key>CFBundleURLTypes</key>',
+      '    <array>',
+      '        <dict>',
+      '            <key>CFBundleURLSchemes</key>',
+      '            <array>',
+      ...urlSchemes.map(scheme => `                <string>${plistEscape(scheme)}</string>`),
+      '            </array>',
+      '        </dict>',
+      '    </array>'
+    );
+  }
+
+  lines.push('</dict>', '</plist>', '');
+  return lines.join('\n');
+}
+
+function emitEntitlements(config = {}) {
+  const ios = iosConfig(config);
+  const domains = ios.links.universalLinks ?? [];
+  const lines = [
+    '<?xml version="1.0" encoding="UTF-8"?>',
+    '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
+    '<plist version="1.0">',
+    '<dict>',
+  ];
+
+  if (domains.length) {
+    lines.push(
+      '    <key>com.apple.developer.associated-domains</key>',
+      '    <array>',
+      ...domains.map(domain => `        <string>applinks:${plistEscape(domain)}</string>`),
+      '    </array>'
+    );
+  }
+
+  lines.push('</dict>', '</plist>', '');
+  return lines.join('\n');
+}
+
 function id(label) {
   return crypto.createHash('sha1').update(label).digest('hex').slice(0, 24).toUpperCase();
 }
@@ -136,7 +232,8 @@ function emitWorkspace() {
 `;
 }
 
-function emitScheme() {
+function emitScheme(config = {}) {
+  const ios = iosConfig(config);
   return `<?xml version="1.0" encoding="UTF-8"?>
 <Scheme
    LastUpgradeVersion = "2630"
@@ -154,9 +251,9 @@ function emitScheme() {
             <BuildableReference
                BuildableIdentifier = "primary"
                BlueprintIdentifier = "${id('target')}"
-               BuildableName = "${APP_NAME}.app"
-               BlueprintName = "${APP_NAME}"
-               ReferencedContainer = "container:${APP_NAME}.xcodeproj">
+               BuildableName = "${ios.appName}.app"
+               BlueprintName = "${ios.appName}"
+               ReferencedContainer = "container:${ios.appName}.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
       </BuildActionEntries>
@@ -182,9 +279,9 @@ function emitScheme() {
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "${id('target')}"
-            BuildableName = "${APP_NAME}.app"
-            BlueprintName = "${APP_NAME}"
-            ReferencedContainer = "container:${APP_NAME}.xcodeproj">
+            BuildableName = "${ios.appName}.app"
+            BlueprintName = "${ios.appName}"
+            ReferencedContainer = "container:${ios.appName}.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </LaunchAction>
@@ -199,9 +296,9 @@ function emitScheme() {
          <BuildableReference
             BuildableIdentifier = "primary"
             BlueprintIdentifier = "${id('target')}"
-            BuildableName = "${APP_NAME}.app"
-            BlueprintName = "${APP_NAME}"
-            ReferencedContainer = "container:${APP_NAME}.xcodeproj">
+            BuildableName = "${ios.appName}.app"
+            BlueprintName = "${ios.appName}"
+            ReferencedContainer = "container:${ios.appName}.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
    </ProfileAction>
@@ -216,26 +313,29 @@ function emitScheme() {
 `;
 }
 
-function buildSettings(configuration) {
+function buildSettings(configuration, config = {}) {
+  const ios = iosConfig(config);
   return [
     '                ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;',
     '                ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;',
+    `                CODE_SIGN_ENTITLEMENTS = ${ios.appName}/${ios.appName}.entitlements;`,
     '                CODE_SIGN_STYLE = Automatic;',
-    '                CURRENT_PROJECT_VERSION = 1;',
+    `                CURRENT_PROJECT_VERSION = ${ios.versionCode};`,
     '                DEVELOPMENT_TEAM = "";',
     '                ENABLE_PREVIEWS = YES;',
-    '                GENERATE_INFOPLIST_FILE = YES;',
+    '                GENERATE_INFOPLIST_FILE = NO;',
+    `                INFOPLIST_FILE = ${ios.appName}/Info.plist;`,
     '                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;',
     '                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;',
     '                INFOPLIST_KEY_UILaunchScreen_Generation = YES;',
-    '                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";',
-    '                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";',
+    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = ${iosOrientations(ios.orientation.tablet)};`,
+    `                INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = ${iosOrientations(ios.orientation.phone)};`,
     '                LD_RUNPATH_SEARCH_PATHS = (',
     '                    "$(inherited)",',
     '                    "@executable_path/Frameworks",',
     '                );',
-    '                MARKETING_VERSION = 1.0;',
-    `                PRODUCT_BUNDLE_IDENTIFIER = ${BUNDLE_ID};`,
+    `                MARKETING_VERSION = ${ios.versionName};`,
+    `                PRODUCT_BUNDLE_IDENTIFIER = ${ios.bundleId};`,
     '                PRODUCT_NAME = "$(TARGET_NAME)";',
     '                STRING_CATALOG_GENERATE_SYMBOLS = YES;',
     '                SWIFT_APPROACHABLE_CONCURRENCY = YES;',
@@ -247,7 +347,8 @@ function buildSettings(configuration) {
   ].join('\n');
 }
 
-function projectBuildSettings(configuration) {
+function projectBuildSettings(configuration, config = {}) {
+  const ios = iosConfig(config);
   const common = [
     '                ALWAYS_SEARCH_USER_PATHS = NO;',
     '                ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;',
@@ -302,7 +403,7 @@ function projectBuildSettings(configuration) {
     '                GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;',
     '                GCC_WARN_UNUSED_FUNCTION = YES;',
     '                GCC_WARN_UNUSED_VARIABLE = YES;',
-    `                IPHONEOS_DEPLOYMENT_TARGET = ${IOS_DEPLOYMENT_TARGET};`,
+    `                IPHONEOS_DEPLOYMENT_TARGET = ${ios.deploymentTarget};`,
     '                LOCALIZATION_PREFERS_STRING_CATALOGS = YES;',
     '                MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;',
     '                MTL_FAST_MATH = YES;',
@@ -326,7 +427,7 @@ function projectBuildSettings(configuration) {
     '                GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;',
     '                GCC_WARN_UNUSED_FUNCTION = YES;',
     '                GCC_WARN_UNUSED_VARIABLE = YES;',
-    `                IPHONEOS_DEPLOYMENT_TARGET = ${IOS_DEPLOYMENT_TARGET};`,
+    `                IPHONEOS_DEPLOYMENT_TARGET = ${ios.deploymentTarget};`,
     '                LOCALIZATION_PREFERS_STRING_CATALOGS = YES;',
     '                MTL_ENABLE_DEBUG_INFO = NO;',
     '                MTL_FAST_MATH = YES;',
@@ -344,7 +445,8 @@ function projectBuildSettings(configuration) {
 // Keep this close to a fresh Xcode SwiftUI app project. If the desired host
 // skeleton changes, update this template block first and keep dev flow logic
 // outside it.
-function emitProject() {
+function emitProject(config = {}) {
+  const ios = iosConfig(config);
   return `// !$*UTF8*$!
 {
     archiveVersion = 1;
@@ -354,13 +456,13 @@ function emitProject() {
     objects = {
 
 /* Begin PBXFileReference section */
-        ${id(`product:${APP_NAME}.app`)} /* ${APP_NAME}.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ${APP_NAME}.app; sourceTree = BUILT_PRODUCTS_DIR; };
+        ${id(`product:${ios.appName}.app`)} /* ${ios.appName}.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ${ios.appName}.app; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
-        ${id('fsroot:app')} /* ${APP_NAME} */ = {
+        ${id('fsroot:app')} /* ${ios.appName} */ = {
             isa = PBXFileSystemSynchronizedRootGroup;
-            path = ${APP_NAME};
+            path = ${ios.appName};
             sourceTree = "<group>";
         };
 /* End PBXFileSystemSynchronizedRootGroup section */
@@ -379,7 +481,7 @@ function emitProject() {
         ${id('group:root')} = {
             isa = PBXGroup;
             children = (
-                ${id('fsroot:app')} /* ${APP_NAME} */,
+                ${id('fsroot:app')} /* ${ios.appName} */,
                 ${id('group:products')} /* Products */,
             );
             sourceTree = "<group>";
@@ -387,7 +489,7 @@ function emitProject() {
         ${id('group:products')} /* Products */ = {
             isa = PBXGroup;
             children = (
-                ${id(`product:${APP_NAME}.app`)} /* ${APP_NAME}.app */,
+                ${id(`product:${ios.appName}.app`)} /* ${ios.appName}.app */,
             );
             name = Products;
             sourceTree = "<group>";
@@ -395,9 +497,9 @@ function emitProject() {
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
-        ${id('target')} /* ${APP_NAME} */ = {
+        ${id('target')} /* ${ios.appName} */ = {
             isa = PBXNativeTarget;
-            buildConfigurationList = ${id('configlist:target')} /* Build configuration list for PBXNativeTarget "${APP_NAME}" */;
+            buildConfigurationList = ${id('configlist:target')} /* Build configuration list for PBXNativeTarget "${ios.appName}" */;
             buildPhases = (
                 ${id('phase:sources')} /* Sources */,
                 ${id('phase:frameworks')} /* Frameworks */,
@@ -408,13 +510,13 @@ function emitProject() {
             dependencies = (
             );
             fileSystemSynchronizedGroups = (
-                ${id('fsroot:app')} /* ${APP_NAME} */,
+                ${id('fsroot:app')} /* ${ios.appName} */,
             );
-            name = ${APP_NAME};
+            name = ${ios.appName};
             packageProductDependencies = (
             );
-            productName = ${APP_NAME};
-            productReference = ${id(`product:${APP_NAME}.app`)} /* ${APP_NAME}.app */;
+            productName = ${ios.appName};
+            productReference = ${id(`product:${ios.appName}.app`)} /* ${ios.appName}.app */;
             productType = "com.apple.product-type.application";
         };
 /* End PBXNativeTarget section */
@@ -432,7 +534,7 @@ function emitProject() {
                     };
                 };
             };
-            buildConfigurationList = ${id('configlist:project')} /* Build configuration list for PBXProject "${APP_NAME}" */;
+            buildConfigurationList = ${id('configlist:project')} /* Build configuration list for PBXProject "${ios.appName}" */;
             developmentRegion = en;
             hasScannedForEncodings = 0;
             knownRegions = (
@@ -446,7 +548,7 @@ function emitProject() {
             projectDirPath = "";
             projectRoot = "";
             targets = (
-                ${id('target')} /* ${APP_NAME} */,
+                ${id('target')} /* ${ios.appName} */,
             );
         };
 /* End PBXProject section */
@@ -475,35 +577,35 @@ function emitProject() {
         ${id('config:project:Debug')} /* Debug */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
-${projectBuildSettings('Debug')}
+${projectBuildSettings('Debug', config)}
             };
             name = Debug;
         };
         ${id('config:project:Release')} /* Release */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
-${projectBuildSettings('Release')}
+${projectBuildSettings('Release', config)}
             };
             name = Release;
         };
         ${id('config:target:Debug')} /* Debug */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
-${buildSettings('Debug')}
+${buildSettings('Debug', config)}
             };
             name = Debug;
         };
         ${id('config:target:Release')} /* Release */ = {
             isa = XCBuildConfiguration;
             buildSettings = {
-${buildSettings('Release')}
+${buildSettings('Release', config)}
             };
             name = Release;
         };
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
-        ${id('configlist:project')} /* Build configuration list for PBXProject "${APP_NAME}" */ = {
+        ${id('configlist:project')} /* Build configuration list for PBXProject "${ios.appName}" */ = {
             isa = XCConfigurationList;
             buildConfigurations = (
                 ${id('config:project:Debug')} /* Debug */,
@@ -512,7 +614,7 @@ ${buildSettings('Release')}
             defaultConfigurationIsVisible = 0;
             defaultConfigurationName = Release;
         };
-        ${id('configlist:target')} /* Build configuration list for PBXNativeTarget "${APP_NAME}" */ = {
+        ${id('configlist:target')} /* Build configuration list for PBXNativeTarget "${ios.appName}" */ = {
             isa = XCConfigurationList;
             buildConfigurations = (
                 ${id('config:target:Debug')} /* Debug */,
@@ -528,10 +630,11 @@ ${buildSettings('Release')}
 `;
 }
 
-export function prepareIosHost(root) {
+export function prepareIosHost(root, config = {}) {
+  const ios = iosConfig(config);
   const iosRoot = path.join(root, '.aic/ios');
-  const appDir = path.join(iosRoot, APP_NAME);
-  const projectDir = path.join(iosRoot, `${APP_NAME}.xcodeproj`);
+  const appDir = path.join(iosRoot, ios.appName);
+  const projectDir = path.join(iosRoot, `${ios.appName}.xcodeproj`);
   const generatedSourceDir = path.join(root, 'generated/ios');
 
   resetPath(appDir);
@@ -545,38 +648,41 @@ export function prepareIosHost(root) {
   writeFile(path.join(appDir, 'Assets.xcassets/Contents.json'), emitAssetCatalogContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/Contents.json'), emitAppIconContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AccentColor.colorset/Contents.json'), emitAccentColorContents());
-  writeFile(path.join(projectDir, 'project.pbxproj'), emitProject());
+  writeFile(path.join(appDir, 'Info.plist'), emitInfoPlist(config));
+  writeFile(path.join(appDir, `${ios.appName}.entitlements`), emitEntitlements(config));
+  writeFile(path.join(projectDir, 'project.pbxproj'), emitProject(config));
   writeFile(path.join(projectDir, 'project.xcworkspace/contents.xcworkspacedata'), emitWorkspace());
-  writeFile(path.join(projectDir, `xcshareddata/xcschemes/${APP_NAME}.xcscheme`), emitScheme());
+  writeFile(path.join(projectDir, `xcshareddata/xcschemes/${ios.appName}.xcscheme`), emitScheme(config));
 
   return {
-    appName: APP_NAME,
-    bundleId: BUNDLE_ID,
+    appName: ios.appName,
+    bundleId: ios.bundleId,
     template: IOS_HOST_TEMPLATE,
     iosRoot,
     project: path.join(projectDir, 'project.pbxproj'),
-    scheme: APP_NAME,
+    scheme: ios.appName,
     sources: sourceFiles,
   };
 }
 
-export function iosCommandPlan(root, simulator = { udid: '<simulator-udid>' }) {
+export function iosCommandPlan(root, simulator = { udid: '<simulator-udid>' }, config = {}) {
+  const ios = iosConfig(config);
   const iosRoot = path.join(root, '.aic/ios');
-  const project = path.join(iosRoot, `${APP_NAME}.xcodeproj`);
+  const project = path.join(iosRoot, `${ios.appName}.xcodeproj`);
   const derivedData = path.join(iosRoot, 'DerivedData');
-  const app = path.join(derivedData, `Build/Products/Debug-iphonesimulator/${APP_NAME}.app`);
+  const app = path.join(derivedData, `Build/Products/Debug-iphonesimulator/${ios.appName}.app`);
   const simulatorTarget = simulator.udid ?? '<simulator-udid>';
   const destination = simulator.udid
     ? `platform=iOS Simulator,id=${simulator.udid}`
     : `platform=iOS Simulator,name=${simulator.name}`;
 
   return [
-    ['xcodebuild', ['-quiet', '-project', project, '-scheme', APP_NAME, '-configuration', 'Debug', '-destination', destination, '-derivedDataPath', derivedData, 'build']],
+    ['xcodebuild', ['-quiet', '-project', project, '-scheme', ios.appName, '-configuration', 'Debug', '-destination', destination, '-derivedDataPath', derivedData, 'build']],
     ['xcrun', ['simctl', 'boot', simulatorTarget]],
     ['xcrun', ['simctl', 'bootstatus', simulatorTarget, '-b']],
     ['open', ['-a', 'Simulator', '--args', '-CurrentDeviceUDID', simulatorTarget]],
     ['xcrun', ['simctl', 'install', simulatorTarget, app]],
-    ['xcrun', ['simctl', 'launch', simulatorTarget, BUNDLE_ID]],
+    ['xcrun', ['simctl', 'launch', simulatorTarget, ios.bundleId]],
   ];
 }
 

@@ -6,6 +6,9 @@
   "scripts": {
     "validate": "node compiler/aic.mjs validate",
     "build": "node compiler/aic.mjs build",
+    "author:loop": "node compiler/aic.mjs author:loop",
+    "figma:import": "node compiler/aic.mjs figma:import",
+    "plugins:validate": "node compiler/aic.mjs plugins:validate",
     "doctor:ios": "node compiler/aic.mjs doctor:ios",
     "dry-run:ios": "node compiler/aic.mjs dry-run:ios",
     "dev:ios": "node compiler/aic.mjs dev:ios",
@@ -13,8 +16,9 @@
     "dry-run:android": "node compiler/aic.mjs dry-run:android",
     "dev:android": "node compiler/aic.mjs dev:android",
     "snapshots": "node compiler/aic.mjs snapshots",
+    "snapshots:diff": "node compiler/aic.mjs snapshots:diff",
     "verify:ui": "node compiler/aic.mjs snapshots",
-    "test": "npm run validate && npm run build"
+    "test": "npm run validate && npm run plugins:validate && npm run build"
   },
   "keywords": [],
   "author": "",

@@ -1,9 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ui-ir.schema.json",
-  "title": "UI IR Screen",
+  "title": "UI IR",
   "type": "object",
-  "required": ["screen", "body"],
+  "required": ["body"],
+  "oneOf": [
+    { "required": ["screen"], "not": { "required": ["component"] } },
+    { "required": ["component"], "not": { "required": ["screen"] } }
+  ],
   "additionalProperties": false,
   "properties": {
     "screen": {
@@ -11,7 +15,25 @@
       "pattern": "^[A-Z][A-Za-z0-9]*$",
       "description": "Screen 名，PascalCase，用于生成类型名"
     },
+    "component": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "Component 名，PascalCase，用于生成类型名"
+    },
+    "entry": { "type": "boolean" },
     "title": { "type": "string" },
+    "props": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "type": { "$ref": "#/$defs/propType" }
+        }
+      }
+    },
     "layout": {
       "type": "object",
       "additionalProperties": false,
@@ -23,16 +45,7 @@
     },
     "state": {
       "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["name", "type"],
-        "additionalProperties": false,
-        "properties": {
-          "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-          "type": { "enum": ["string", "bool", "int", "double"] },
-          "default": { "type": ["string", "boolean", "number"] }
-        }
-      }
+      "items": { "$ref": "#/$defs/state" }
     },
     "body": {
       "type": "array",
@@ -47,13 +60,105 @@
         "additionalProperties": false,
         "properties": {
           "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
-          "steps": { "type": "array", "items": { "type": "string" } }
+          "steps": { "type": "array", "items": { "type": "string" } },
+          "navigation": { "$ref": "#/$defs/navigation" }
         }
       }
     }
   },
   "$defs": {
     "spacing": { "enum": ["none", "tight", "normal", "loose"] },
+    "scalarType": { "enum": ["string", "bool", "int", "double"] },
+    "propType": { "enum": ["string", "bool", "int", "double", "action"] },
+    "state": {
+      "type": "object",
+      "required": ["name", "type"],
+      "oneOf": [
+        { "$ref": "#/$defs/scalarState" },
+        { "$ref": "#/$defs/listState" }
+      ]
+    },
+    "scalarState": {
+      "type": "object",
+      "required": ["name", "type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+        "type": { "$ref": "#/$defs/scalarType" },
+        "default": { "type": ["string", "boolean", "number"] }
+      }
+    },
+    "listState": {
+      "type": "object",
+      "required": ["name", "type", "item"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+        "type": { "const": "list" },
+        "item": {
+          "type": "object",
+          "required": ["fields"],
+          "additionalProperties": false,
+          "properties": {
+            "fields": {
+              "type": "array",
+              "minItems": 1,
+              "items": {
+                "type": "object",
+                "required": ["name", "type"],
+                "additionalProperties": false,
+                "properties": {
+                  "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+                  "type": { "$ref": "#/$defs/scalarType" }
+                }
+              }
+            }
+          }
+        },
+        "default": {
+          "type": "array",
+          "items": { "type": "object" }
+        }
+      }
+    },
+    "navigation": {
+      "type": "object",
+      "required": ["type"],
+      "oneOf": [
+        {
+          "type": "object",
+          "required": ["type", "screen"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "push" },
+            "screen": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" }
+          }
+        },
+        {
+          "type": "object",
+          "required": ["type"],
+          "additionalProperties": false,
+          "properties": {
+            "type": { "const": "pop" }
+          }
+        }
+      ]
+    },
+    "condition": {
+      "type": "object",
+      "required": ["state"],
+      "additionalProperties": false,
+      "properties": {
+        "state": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+        "equals": { "type": ["string", "boolean", "number"] },
+        "notEquals": { "type": ["string", "boolean", "number"] }
+      },
+      "not": { "required": ["equals", "notEquals"] }
+    },
+    "textBinding": {
+      "type": "string",
+      "pattern": "^(item\\.)?[a-z][A-Za-z0-9]*$"
+    },
     "node": {
       "type": "object",
       "required": ["type"],
@@ -66,6 +171,7 @@
         { "$ref": "#/$defs/button" },
         { "$ref": "#/$defs/textField" },
         { "$ref": "#/$defs/list" },
+        { "$ref": "#/$defs/componentNode" },
         { "$ref": "#/$defs/spacer" }
       ]
     },
@@ -75,6 +181,7 @@
       "additionalProperties": false,
       "properties": {
         "type": { "const": "column" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "spacing": { "$ref": "#/$defs/spacing" },
         "padding": { "$ref": "#/$defs/spacing" },
         "align": { "enum": ["start", "center", "end"] },
@@ -87,6 +194,7 @@
       "additionalProperties": false,
       "properties": {
         "type": { "const": "row" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "spacing": { "$ref": "#/$defs/spacing" },
         "padding": { "$ref": "#/$defs/spacing" },
         "align": { "enum": ["start", "center", "end"] },
@@ -95,14 +203,20 @@
     },
     "text": {
       "type": "object",
-      "required": ["type", "value"],
+      "required": ["type"],
       "additionalProperties": false,
       "properties": {
         "type": { "const": "text" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "value": { "type": "string" },
+        "bind": { "$ref": "#/$defs/textBinding" },
         "role": { "enum": ["title", "heading", "body", "caption"] },
         "color": { "enum": ["textPrimary", "textSecondary", "primary"] }
-      }
+      },
+      "oneOf": [
+        { "required": ["value"], "not": { "required": ["bind"] } },
+        { "required": ["bind"], "not": { "required": ["value"] } }
+      ]
     },
     "image": {
       "type": "object",
@@ -110,6 +224,7 @@
       "additionalProperties": false,
       "properties": {
         "type": { "const": "image" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "url": { "type": "string" },
         "height": { "type": "integer", "minimum": 1, "maximum": 1000 },
         "radius": { "enum": ["none", "small", "normal", "large"] }
@@ -121,6 +236,7 @@
       "additionalProperties": false,
       "properties": {
         "type": { "const": "button" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "label": { "type": "string" },
         "role": { "enum": ["primary", "secondary", "ghost"] },
         "action": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" }
@@ -132,6 +248,7 @@
       "additionalProperties": false,
       "properties": {
         "type": { "const": "textField" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "bind": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
         "placeholder": { "type": "string" },
         "secure": { "type": "boolean" },
@@ -140,10 +257,11 @@
     },
     "list": {
       "type": "object",
-      "required": ["type", "itemTemplate"],
+      "required": ["type", "bind", "itemTemplate"],
       "additionalProperties": false,
       "properties": {
         "type": { "const": "list" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
         "bind": { "type": "string" },
         "itemTemplate": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
       }
@@ -153,7 +271,33 @@
       "required": ["type"],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "spacer" }
+        "type": { "const": "spacer" },
+        "visibleWhen": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "propValue": {
+      "type": "string",
+      "pattern": "^(item\\.)?[a-z][A-Za-z0-9]*$"
+    },
+    "componentNode": {
+      "type": "object",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "component" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/$defs/propValue" },
+              { "type": "string" },
+              { "type": "boolean" },
+              { "type": "number" }
+            ]
+          }
+        }
       }
     }
   }

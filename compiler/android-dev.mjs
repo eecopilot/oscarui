@@ -2,9 +2,7 @@ import { execFileSync, spawn } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  ANDROID_APPLICATION_ID,
   ANDROID_GRADLE_VERSION,
-  ANDROID_NAMESPACE,
   androidCommandPlan,
   defaultAndroidHome,
   detectJava17Home,
@@ -216,9 +214,9 @@ export function doctorAndroid() {
   return !checks.some(check => !check.ok);
 }
 
-export function dryRunAndroid(root, screens) {
-  const host = prepareAndroidHost(root, screens);
-  const commands = androidCommandPlan(root);
+export function dryRunAndroid(root, screens, config) {
+  const host = prepareAndroidHost(root, screens, config);
+  const commands = androidCommandPlan(root, undefined, config);
 
   console.log(`→ .aic/android`);
   console.log(`→ .aic/android/app/src/main/java/app/generated/*.kt`);
@@ -230,8 +228,8 @@ export function dryRunAndroid(root, screens) {
   }
 }
 
-export function devAndroid(root, screens) {
-  const host = prepareAndroidHost(root, screens);
+export function devAndroid(root, screens, config) {
+  const host = prepareAndroidHost(root, screens, config);
   console.log(`→ .aic/android`);
   console.log(`→ .aic/android/app/src/main/java/app/generated/*.kt`);
   console.log(`→ Android host template: ${host.template}`);
@@ -246,7 +244,8 @@ export function devAndroid(root, screens) {
   runLogged(gradle, ['--no-daemon', '--console=plain', '-p', path.join(root, '.aic/android'), ':app:assembleDebug'], root);
   ensureAndroidDevice(root);
   runLogged(adb, ['install', '-r', apk], root);
-  runLogged(adb, ['shell', 'am', 'start', '-n', `${ANDROID_APPLICATION_ID}/${ANDROID_NAMESPACE}.MainActivity`], root);
+  const startCommand = androidCommandPlan(root, undefined, config).at(-1);
+  runLogged(startCommand[0], startCommand[1], root);
 
   console.log('');
   console.log('Android app is running.');

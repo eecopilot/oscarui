@@ -33,6 +33,12 @@ Run the lightweight test loop:
 npm test
 ```
 
+Generate deterministic feedback for the next AI authoring pass:
+
+```sh
+npm run author:loop
+```
+
 Build, launch, and save screenshots from both platforms:
 
 ```sh
@@ -41,11 +47,19 @@ npm run snapshots
 
 Screenshots are saved under `.aic/snapshots/`.
 
+Compare captured snapshot metadata:
+
+```sh
+npm run snapshots:diff
+```
+
 ## Daily Workflow
 
 For UI changes, edit these source files first:
 
 - `screens/*.ui.yaml`: screen structure and UI intent
+- `components/*.ui.yaml`: reusable UI component intent
+- `app.config.yaml`: app identity, platform settings, permissions, privacy strings, links, and orientation
 - `theme/tokens.yaml`: design tokens such as spacing, radius, color, typography, and size
 - `schema/ui-ir.schema.json`: the allowed IR contract
 - `compiler/*.mjs`: deterministic templates from IR to SwiftUI / Compose
@@ -86,6 +100,18 @@ Build, install, and launch the apps:
 ```sh
 npm run dev:ios
 npm run dev:android
+```
+
+Import a constrained Figma JSON export into a draft screen:
+
+```sh
+npm run figma:import -- path/to/figma.json screens/imported.ui.yaml
+```
+
+Validate plugin manifests:
+
+```sh
+npm run plugins:validate
 ```
 
 ## UI IR Example
@@ -173,29 +199,17 @@ This is the right place for login logic, navigation, API calls, token storage, a
 ```text
 oscarui/
 ├── screens/                 # UI IR, the screen source of truth
+├── components/              # Reusable component IR
+├── app.config.yaml          # App identity, platform, permission, and link source
 ├── schema/                  # IR schema, limits allowed UI capabilities
 ├── theme/                   # Design tokens
 ├── compiler/                # Deterministic compiler and CLI
 ├── native/                  # Handwritten native action implementations
+├── plugins/                 # Optional deterministic pipeline extensions
 ├── generated/               # Generated SwiftUI / Compose code
 └── .aic/                    # Local host projects, build cache, screenshots
 ```
 
-## Current Capabilities
+## Project Progress
 
-Phase 1 is complete:
-
-- IR schema + token system
-- SwiftUI / Compose generation
-- Login screen example
-- iOS / Android CLI host projects
-
-Phase 1.5 is complete:
-
-- Screen-level layout contract: `safeArea`, `contentPosition`, `contentWidth`
-- Control visual tokens: content width, control height, border, placeholder, primary-button text color
-- Deterministic `textField` / `button` styles
-- Stronger semantic validation
-- Screenshot command for both platforms
-
-The next major milestone is Phase 2: navigation, conditional rendering, list data binding, and a plugin extension protocol.
+Phase status is tracked separately in [`ROADMAP.md`](ROADMAP.md). The README focuses on project usage and day-to-day workflow.

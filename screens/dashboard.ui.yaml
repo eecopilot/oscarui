@@ -1,0 +1,67 @@
+screen: Dashboard
+title: Dashboard
+
+layout:
+  safeArea: true
+  contentPosition: top
+  contentWidth: normal
+
+state:
+  - name: isEmpty
+    type: bool
+    default: false
+  - name: projects
+    type: list
+    item:
+      fields:
+        - name: name
+          type: string
+        - name: platform
+          type: string
+    default:
+      - name: Login screen
+        platform: SwiftUI / Compose
+      - name: Phase 2 shell
+        platform: Navigation + lists
+
+body:
+  - type: column
+    spacing: loose
+    padding: normal
+    align: start
+    children:
+      - type: text
+        role: title
+        value: OscarUI
+      - type: text
+        role: body
+        value: Cross-platform UI from deterministic IR
+        color: textSecondary
+      - type: text
+        role: body
+        value: No projects yet
+        color: textSecondary
+        visibleWhen:
+          state: isEmpty
+          equals: true
+      - type: list
+        bind: projects
+        itemTemplate:
+          - type: component
+            name: ProjectCard
+            props:
+              title: item.name
+              subtitle: item.platform
+              onSelect: selectProject
+      - type: button
+        role: secondary
+        label: Back
+        action: goBack
+
+actions:
+  - name: selectProject
+    steps: [select]
+  - name: goBack
+    steps: [navigate]
+    navigation:
+      type: pop
