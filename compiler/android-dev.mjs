@@ -150,7 +150,14 @@ function waitForAndroidBoot(root) {
   throw new Error('android dev: emulator did not finish booting within 180 seconds.');
 }
 
-function ensureAndroidDevice(root, avdName = process.env.AIC_ANDROID_AVD || 'oscarui_api35') {
+function selectAndroidAvd(preferred = process.env.AIC_ANDROID_AVD) {
+  const avds = avdNames();
+  if (!avds.length) return '';
+  if (!preferred) return avds[0];
+  return avds.includes(preferred) ? preferred : '';
+}
+
+function ensureAndroidDevice(root, avdName = selectAndroidAvd()) {
   const serial = bootedDeviceSerial();
   if (serial) {
     console.log(`✓ Android device already connected: ${serial}`);
@@ -159,6 +166,12 @@ function ensureAndroidDevice(root, avdName = process.env.AIC_ANDROID_AVD || 'osc
 
   const emulator = findTool('emulator');
   if (!emulator) throw new Error('android dev: emulator command not found.');
+  if (!avdName) {
+    const hint = process.env.AIC_ANDROID_AVD
+      ? ` AIC_ANDROID_AVD="${process.env.AIC_ANDROID_AVD}" did not match an installed AVD.`
+      : '';
+    throw new Error(`android dev: no Android AVD found.${hint} Create one with avdmanager first.`);
+  }
   if (!avdNames().includes(avdName)) {
     throw new Error(`android dev: AVD "${avdName}" not found. Create it with avdmanager first.`);
   }
