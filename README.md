@@ -172,6 +172,28 @@ actions:
 
 IR should reference token names, such as `spacing: normal` and `contentWidth: compact`. Avoid raw numeric values in screen IR.
 
+## Component References
+
+Reusable components live in `components/*.ui.yaml`. Screens can reference them with `use`, and can combine that reference with a simple `for` loop or `if` condition:
+
+```yaml
+- use: component
+  path: components/projectCard.ui.yaml
+  for: project in projects
+  title: project.name
+  subtitle: project.platform
+  onSelect: selectProject
+
+- use: EmptyState
+  if:
+    state: isEmpty
+    equals: true
+```
+
+The compiler normalizes this short form into the canonical list/component IR before generating SwiftUI and Compose output. You can also put props under a nested `props:` object when that reads better.
+
+If the component is already known by name, `use: ProjectCard` is also valid.
+
 ## The native Directory
 
 `native/` is where handwritten native action implementations live.

@@ -44,15 +44,12 @@ body:
         visibleWhen:
           state: isEmpty
           equals: true
-      - type: list
-        bind: projects
-        itemTemplate:
-          - type: component
-            name: ProjectCard
-            props:
-              title: item.name
-              subtitle: item.platform
-              onSelect: selectProject
+      - use: component
+        path: components/projectCard.ui.yaml
+        for: project in projects
+        title: project.name
+        subtitle: project.platform
+        onSelect: selectProject
       - type: button
         role: secondary
         label: Back

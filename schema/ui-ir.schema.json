@@ -161,8 +161,6 @@
     },
     "node": {
       "type": "object",
-      "required": ["type"],
-      "discriminator": { "propertyName": "type" },
       "oneOf": [
         { "$ref": "#/$defs/column" },
         { "$ref": "#/$defs/row" },
@@ -172,6 +170,7 @@
         { "$ref": "#/$defs/textField" },
         { "$ref": "#/$defs/list" },
         { "$ref": "#/$defs/componentNode" },
+        { "$ref": "#/$defs/componentRef" },
         { "$ref": "#/$defs/spacer" }
       ]
     },
@@ -277,7 +276,18 @@
     },
     "propValue": {
       "type": "string",
-      "pattern": "^(item\\.)?[a-z][A-Za-z0-9]*$"
+      "pattern": "^([a-z][A-Za-z0-9]*\\.)?[a-z][A-Za-z0-9]*$"
+    },
+    "propMap": {
+      "type": "object",
+      "additionalProperties": {
+        "anyOf": [
+          { "$ref": "#/$defs/propValue" },
+          { "type": "string" },
+          { "type": "boolean" },
+          { "type": "number" }
+        ]
+      }
     },
     "componentNode": {
       "type": "object",
@@ -287,18 +297,44 @@
         "type": { "const": "component" },
         "visibleWhen": { "$ref": "#/$defs/condition" },
         "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
-        "props": {
-          "type": "object",
-          "additionalProperties": {
-            "anyOf": [
-              { "$ref": "#/$defs/propValue" },
-              { "type": "string" },
-              { "type": "boolean" },
-              { "type": "number" }
-            ]
-          }
-        }
+        "props": { "$ref": "#/$defs/propMap" }
       }
+    },
+    "componentRef": {
+      "type": "object",
+      "required": ["use"],
+      "additionalProperties": {
+        "anyOf": [
+          { "$ref": "#/$defs/propValue" },
+          { "type": "string" },
+          { "type": "boolean" },
+          { "type": "number" }
+        ]
+      },
+      "properties": {
+        "use": {
+          "anyOf": [
+            { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+            { "const": "component" }
+          ]
+        },
+        "path": { "type": "string", "pattern": "^[A-Za-z0-9_./-]+\\.ui\\.yaml$" },
+        "if": { "$ref": "#/$defs/condition" },
+        "for": {
+          "type": "string",
+          "pattern": "^[a-z][A-Za-z0-9]*\\s+in\\s+[a-z][A-Za-z0-9]*$"
+        },
+        "props": { "$ref": "#/$defs/propMap" }
+      },
+      "allOf": [
+        {
+          "if": {
+            "properties": { "use": { "const": "component" } },
+            "required": ["use"]
+          },
+          "then": { "required": ["path"] }
+        }
+      ]
     }
   }
 }

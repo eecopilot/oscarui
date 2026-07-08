@@ -172,6 +172,26 @@ actions:
 
 IR 里应引用 token 名，比如 `spacing: normal`、`contentWidth: compact`，不要写裸数值。
 
+## 组件引用
+
+可复用组件放在 `components/*.ui.yaml`。页面可以用 `use` 引用组件，也可以和简单的 `for` 循环、`if` 条件组合：
+
+```yaml
+- use: component
+  path: components/projectCard.ui.yaml
+  for: project in projects
+  title: project.name
+  subtitle: project.platform
+  onSelect: selectProject
+
+- use: EmptyState
+  if:
+    state: isEmpty
+    equals: true
+```
+
+编译器会先把这种短写法 normalize 成标准 list/component IR，再生成 SwiftUI 和 Compose。props 也可以继续放在嵌套的 `props:` 下面，哪种更清楚就用哪种。
+
 ## native 目录
 
 `native/` 用来放手写原生 action 实现。
