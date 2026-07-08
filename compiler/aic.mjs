@@ -23,14 +23,18 @@ const ajv = new Ajv({ allErrors: true, allowUnionTypes: true, discriminator: tru
 const validateSchema = ajv.compile(SCHEMA);
 const validateAppConfigSchema = ajv.compile(APP_CONFIG_SCHEMA);
 const validatePluginSchema = ajv.compile(PLUGIN_SCHEMA);
+const SRC_ROOT = path.join(ROOT, 'src');
+const SCREEN_DIR = path.join(SRC_ROOT, 'screens');
+const COMPONENT_DIR = path.join(SRC_ROOT, 'components');
+const NATIVE_DIR = path.join(SRC_ROOT, 'native');
 
 function loadTokens() {
-  return YAML.parse(fs.readFileSync(path.join(ROOT, 'theme/tokens.yaml'), 'utf8'));
+  return YAML.parse(fs.readFileSync(path.join(SRC_ROOT, 'theme/tokens.yaml'), 'utf8'));
 }
 
 export function loadAppConfig(root = ROOT) {
-  const file = path.join(root, 'app.config.yaml');
-  if (!fs.existsSync(file)) throw new Error('app.config.yaml is required');
+  const file = path.join(root, 'src/app.config.yaml');
+  if (!fs.existsSync(file)) throw new Error('src/app.config.yaml is required');
   return YAML.parse(fs.readFileSync(file, 'utf8'));
 }
 
@@ -62,53 +66,55 @@ function appConfigProblems(config) {
 }
 
 function loadScreens() {
-  const dir = path.join(ROOT, 'screens');
+  const dir = SCREEN_DIR;
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter(f => f.endsWith('.ui.yaml'))
     .sort()
     .map(f => {
-      const raw = YAML.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      return { file: f, raw, ir: normalizeIr(raw, ROOT) };
+      const sourceFile = path.join(dir, f);
+      const raw = YAML.parse(fs.readFileSync(sourceFile, 'utf8'));
+      return { file: path.relative(ROOT, sourceFile), sourceFile, raw, ir: normalizeIr(raw, ROOT, sourceFile) };
     });
 }
 
 function loadComponents() {
-  const dir = path.join(ROOT, 'components');
+  const dir = COMPONENT_DIR;
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter(f => f.endsWith('.ui.yaml'))
     .sort()
     .map(f => {
-      const raw = YAML.parse(fs.readFileSync(path.join(dir, f), 'utf8'));
-      return { file: f, raw, ir: normalizeIr(raw, ROOT) };
+      const sourceFile = path.join(dir, f);
+      const raw = YAML.parse(fs.readFileSync(sourceFile, 'utf8'));
+      return { file: path.relative(ROOT, sourceFile), sourceFile, raw, ir: normalizeIr(raw, ROOT, sourceFile) };
     });
 }
 
-function normalizeIr(ir, root) {
+function normalizeIr(ir, root, sourceFile) {
   return {
     ...ir,
-    body: (ir.body ?? []).map(node => normalizeNode(node, root)),
+    body: (ir.body ?? []).map(node => normalizeNode(node, root, path.dirname(sourceFile))),
   };
 }
 
-function normalizeNode(node, root) {
-  if (node.use) return normalizeComponentRef(node, root);
+function normalizeNode(node, root, sourceDir) {
+  if (node.use) return normalizeComponentRef(node, root, sourceDir);
   const next = { ...node };
   if (node.if) {
     next.visibleWhen = node.if;
     delete next.if;
   }
-  if (node.children) next.children = node.children.map(child => normalizeNode(child, root));
-  if (node.itemTemplate) next.itemTemplate = node.itemTemplate.map(child => normalizeNode(child, root));
+  if (node.children) next.children = node.children.map(child => normalizeNode(child, root, sourceDir));
+  if (node.itemTemplate) next.itemTemplate = node.itemTemplate.map(child => normalizeNode(child, root, sourceDir));
   return next;
 }
 
-function normalizeComponentRef(node, root) {
+function normalizeComponentRef(node, root, sourceDir) {
   const props = normalizePropsForAlias(componentRefProps(node), node.for ? node.for.match(/^([a-z][A-Za-z0-9]*)\s+in\s+([a-z][A-Za-z0-9]*)$/)?.[1] : '');
   const component = {
     type: 'component',
-    name: componentNameForRef(node, root),
+    name: componentNameForRef(node, root, sourceDir),
     props,
   };
   if (node.if) component.visibleWhen = node.if;
@@ -129,9 +135,9 @@ function componentRefProps(node) {
   return { ...inline, ...(node.props ?? {}) };
 }
 
-function componentNameForRef(node, root) {
+function componentNameForRef(node, root, sourceDir) {
   if (node.use !== 'component') return node.use;
-  const file = resolveComponentRefPath(node, root);
+  const file = resolveComponentRefPath(node, root, sourceDir);
   if (!file || !fs.existsSync(file)) return '';
   try {
     const ir = YAML.parse(fs.readFileSync(file, 'utf8'));
@@ -141,19 +147,30 @@ function componentNameForRef(node, root) {
   }
 }
 
-function resolveComponentRefPath(node, root) {
-  if (!node.path) return '';
-  const file = path.resolve(root, node.path);
+function isInsideRoot(root, file) {
   const relative = path.relative(root, file);
-  if (relative.startsWith('..') || path.isAbsolute(relative)) return '';
-  return file;
+  return relative === '' || (!relative.startsWith('..') && !path.isAbsolute(relative));
 }
 
-function componentRefProblems(raw, root) {
+function resolveComponentRefPath(node, root, sourceDir) {
+  if (!node.path) return '';
+  const candidates = path.isAbsolute(node.path)
+    ? [node.path]
+    : [
+        path.resolve(sourceDir, node.path),
+        path.resolve(root, node.path),
+        path.resolve(SRC_ROOT, node.path),
+      ];
+  const insideCandidates = candidates.filter(file => isInsideRoot(root, file));
+  return insideCandidates.find(file => fs.existsSync(file)) ?? insideCandidates[0] ?? '';
+}
+
+function componentRefProblems(raw, root, sourceFile) {
   const errors = [];
+  const sourceDir = path.dirname(sourceFile);
   function walk(node) {
     if (node.use === 'component') {
-      const file = resolveComponentRefPath(node, root);
+      const file = resolveComponentRefPath(node, root, sourceDir);
       if (!node.path) {
         errors.push('component path is required when use is "component"');
       } else if (!file) {
@@ -221,7 +238,7 @@ function themeProblems(tokens) {
   const problems = [];
   for (const [group, names] of Object.entries(required)) {
     for (const name of names) {
-      if (!hasToken(tokens, group, name)) problems.push(`theme/tokens.yaml is missing ${group} token "${name}"`);
+      if (!hasToken(tokens, group, name)) problems.push(`src/theme/tokens.yaml is missing ${group} token "${name}"`);
     }
   }
   return problems;
@@ -231,8 +248,8 @@ function nativeActionProblems(ir) {
   if (!ir.screen) return [];
   const problems = [];
   const platforms = [
-    { label: 'iOS', file: path.join(ROOT, 'native/ios', `${ir.screen}ActionsImpl.swift`), pattern: action => new RegExp(`\\bfunc\\s+${action}\\s*\\(`) },
-    { label: 'Android', file: path.join(ROOT, 'native/android', `${ir.screen}ActionsImpl.kt`), pattern: action => new RegExp(`\\bfun\\s+${action}\\s*\\(`) },
+    { label: 'iOS', file: path.join(NATIVE_DIR, 'ios', `${ir.screen}ActionsImpl.swift`), pattern: action => new RegExp(`\\bfunc\\s+${action}\\s*\\(`) },
+    { label: 'Android', file: path.join(NATIVE_DIR, 'android', `${ir.screen}ActionsImpl.kt`), pattern: action => new RegExp(`\\bfun\\s+${action}\\s*\\(`) },
   ];
 
   for (const platform of platforms) {
@@ -403,7 +420,7 @@ function validate() {
   const tokens = loadTokens();
   const appConfig = loadAppConfig();
   if (!screens.length) {
-    console.error('no .ui.yaml files found in screens/');
+    console.error('no .ui.yaml files found in src/screens/');
     process.exit(1);
   }
   let failed = false;
@@ -416,15 +433,15 @@ function validate() {
   }
   if (appConfigErrors.length) {
     failed = true;
-    console.error('✗ app.config.yaml');
+    console.error('✗ src/app.config.yaml');
     for (const p of appConfigErrors) console.error(`    ${p}`);
   } else {
-    console.log('✓ app.config.yaml');
+    console.log('✓ src/app.config.yaml');
   }
   const tokenProblems = themeProblems(tokens);
   if (tokenProblems.length) {
     failed = true;
-    console.error('✗ theme/tokens.yaml');
+    console.error('✗ src/theme/tokens.yaml');
     for (const p of tokenProblems) console.error(`    ${p}`);
   }
   const screenFilesByName = new Map();
@@ -435,16 +452,16 @@ function validate() {
   const entryScreens = screens.filter(({ ir }) => ir.entry);
   if (entryScreens.length > 1) {
     failed = true;
-    console.error('✗ screens/');
+    console.error('✗ src/screens/');
     for (const { file, ir } of entryScreens) console.error(`    entry screen "${ir.screen}" declared in ${file}`);
   }
-  for (const { file, raw, ir } of screens) {
+  for (const { file, sourceFile, raw, ir } of screens) {
     const problems = [];
     if (!validateSchema(raw)) {
       for (const e of validateSchema.errors)
         problems.push(`${e.instancePath || '/'} ${e.message}`);
     } else {
-      problems.push(...componentRefProblems(raw, ROOT));
+      problems.push(...componentRefProblems(raw, ROOT, sourceFile));
       if (screenFilesByName.has(ir.screen)) {
         problems.push(`duplicate screen name "${ir.screen}" also used by ${screenFilesByName.get(ir.screen)}`);
       } else {
@@ -461,13 +478,13 @@ function validate() {
       console.log(`✓ ${file}`);
     }
   }
-  for (const { file, raw, ir } of components) {
+  for (const { file, sourceFile, raw, ir } of components) {
     const problems = [];
     if (!validateSchema(raw)) {
       for (const e of validateSchema.errors)
         problems.push(`${e.instancePath || '/'} ${e.message}`);
     } else {
-      problems.push(...componentRefProblems(raw, ROOT));
+      problems.push(...componentRefProblems(raw, ROOT, sourceFile));
       if (componentFilesByName.has(ir.component)) {
         problems.push(`duplicate component name "${ir.component}" also used by ${componentFilesByName.get(ir.component)}`);
       } else {
@@ -480,10 +497,10 @@ function validate() {
     }
     if (problems.length) {
       failed = true;
-      console.error(`✗ components/${file}`);
+      console.error(`✗ ${file}`);
       for (const p of problems) console.error(`    ${p}`);
     } else {
-      console.log(`✓ components/${file}`);
+      console.log(`✓ ${file}`);
     }
   }
   if (failed) process.exit(1);
@@ -494,7 +511,7 @@ function build() {
   const { screens, components } = validate();
   const appConfig = loadAppConfig();
   const tokens = loadTokens();
-  const nativeCreated = ensureNativeActionStubs(ROOT, screens);
+  const nativeCreated = ensureNativeActionStubs(ROOT, screens, NATIVE_DIR);
 
   const iosDir = path.join(ROOT, 'generated/ios');
   const androidDir = path.join(ROOT, 'generated/android');

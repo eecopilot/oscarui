@@ -5,7 +5,7 @@ English | [简体中文](README.zh-CN.md)
 OscarUI is a prototype UI compiler that turns a single UI intent file into native iOS SwiftUI and Android Jetpack Compose screens.
 The name stands for Open Source Cross Apple/Android Renderer.
 
-The core idea is to keep AI-driven changes inside IR files such as `screens/*.ui.yaml`, then let a deterministic compiler generate native code for both platforms. The same IR input should produce repeatable, verifiable native output.
+The core idea is to keep AI-driven changes inside IR files such as `src/screens/*.ui.yaml`, then let a deterministic compiler generate native code for both platforms. The same IR input should produce repeatable, verifiable native output.
 
 ## Quick Start
 
@@ -57,10 +57,10 @@ npm run snapshots:diff
 
 For UI changes, edit these source files first:
 
-- `screens/*.ui.yaml`: screen structure and UI intent
-- `components/*.ui.yaml`: reusable UI component intent
-- `app.config.yaml`: app identity, platform settings, permissions, privacy strings, links, and orientation
-- `theme/tokens.yaml`: design tokens such as spacing, radius, color, typography, and size
+- `src/screens/*.ui.yaml`: screen structure and UI intent
+- `src/components/*.ui.yaml`: reusable UI component intent
+- `src/app.config.yaml`: app identity, platform settings, permissions, privacy strings, links, and orientation
+- `src/theme/tokens.yaml`: design tokens such as spacing, radius, color, typography, and size
 - `schema/ui-ir.schema.json`: the allowed IR contract
 - `compiler/*.mjs`: deterministic templates from IR to SwiftUI / Compose
 
@@ -105,7 +105,7 @@ npm run dev:android
 Import a constrained Figma JSON export into a draft screen:
 
 ```sh
-npm run figma:import -- path/to/figma.json screens/imported.ui.yaml
+npm run figma:import -- path/to/figma.json src/screens/imported.ui.yaml
 ```
 
 Validate plugin manifests:
@@ -116,7 +116,7 @@ npm run plugins:validate
 
 ## UI IR Example
 
-The current login screen lives in `screens/login.ui.yaml`:
+The current login screen lives in `src/screens/login.ui.yaml`:
 
 ```yaml
 screen: Login
@@ -174,11 +174,11 @@ IR should reference token names, such as `spacing: normal` and `contentWidth: co
 
 ## Component References
 
-Reusable components live in `components/*.ui.yaml`. Screens can reference them with `use`, and can combine that reference with a simple `for` loop or `if` condition:
+Reusable components live in `src/components/*.ui.yaml`. Screens can reference them with `use`, and can combine that reference with a simple `for` loop or `if` condition:
 
 ```yaml
 - use: component
-  path: components/projectCard.ui.yaml
+  path: ../components/projectCard.ui.yaml
   for: project in projects
   title: project.name
   subtitle: project.platform
@@ -196,7 +196,7 @@ If the component is already known by name, `use: ProjectCard` is also valid.
 
 ## The native Directory
 
-`native/` is where handwritten native action implementations live.
+`src/native/` is where handwritten native action implementations live.
 
 For example, the IR can declare:
 
@@ -211,22 +211,23 @@ The compiler generates:
 
 The actual business behavior is implemented in:
 
-- `native/ios/LoginActionsImpl.swift`
-- `native/android/LoginActionsImpl.kt`
+- `src/native/ios/LoginActionsImpl.swift`
+- `src/native/android/LoginActionsImpl.kt`
 
-This is the right place for login logic, navigation, API calls, token storage, and third-party SDK integration. Do not handwrite screen UI in `native/`; screen structure is still owned by `screens/*.ui.yaml`.
+This is the right place for login logic, navigation, API calls, token storage, and third-party SDK integration. Do not handwrite screen UI in `src/native/`; screen structure is still owned by `src/screens/*.ui.yaml`.
 
 ## Project Layout
 
 ```text
 oscarui/
-├── screens/                 # UI IR, the screen source of truth
-├── components/              # Reusable component IR
-├── app.config.yaml          # App identity, platform, permission, and link source
+├── src/
+│   ├── screens/             # UI IR, the screen source of truth
+│   ├── components/          # Reusable component IR
+│   ├── app.config.yaml      # App identity, platform, permission, and link source
+│   ├── theme/               # Design tokens
+│   └── native/              # Handwritten native action implementations
 ├── schema/                  # IR schema, limits allowed UI capabilities
-├── theme/                   # Design tokens
 ├── compiler/                # Deterministic compiler and CLI
-├── native/                  # Handwritten native action implementations
 ├── plugins/                 # Optional deterministic pipeline extensions
 ├── generated/               # Generated SwiftUI / Compose code
 └── .aic/                    # Local host projects, build cache, screenshots

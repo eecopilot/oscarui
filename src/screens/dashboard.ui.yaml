@@ -45,7 +45,7 @@ body:
           state: isEmpty
           equals: true
       - use: component
-        path: components/projectCard.ui.yaml
+        path: ../components/projectCard.ui.yaml
         for: project in projects
         title: project.name
         subtitle: project.platform

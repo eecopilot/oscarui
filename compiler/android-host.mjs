@@ -57,7 +57,7 @@ function copyGeneratedKotlin(root, sourceDir, targetDir) {
 }
 
 function copyNativeKotlin(root, targetDir) {
-  const sourceDir = path.join(root, 'native/android');
+  const sourceDir = path.join(root, 'src/native/android');
   if (!fs.existsSync(sourceDir)) return [];
 
   const files = fs.readdirSync(sourceDir)

@@ -99,7 +99,7 @@ actions:
 设计规则：
 
 1. **语义 token，禁止裸数值**。`spacing: normal` 而非 `padding: 17`。
-   token → 数值的映射在 `theme/tokens.yaml`，两端共用。
+   token → 数值的映射在 `src/theme/tokens.yaml`，两端共用。
 2. **枚举收窄**。组件类型、role、spacing 都是 schema 里的闭集枚举。
    AI 想「发挥」时 schema 会直接拒绝，这就是防漂移的硬约束。
 3. **UI 与 Logic 分离**。IR 只声明 `action: login`；action 的实现是
@@ -126,7 +126,7 @@ actions:
 
 ## 五、Design Token
 
-`theme/tokens.yaml` 是唯一的视觉真源：
+`src/theme/tokens.yaml` 是唯一的视觉真源：
 
 ```yaml
 spacing: { tight: 4, normal: 16, loose: 24 }
@@ -181,8 +181,8 @@ class LoginActionsImpl : LoginActions { override fun login() { … } }
 业务逻辑天然是原生的，性能无损；AI 也可以帮写这部分，
 但它属于普通 native 开发，不在 IR 管辖内。
 
-当前实现把可编辑 action 实现放在 `native/ios/*.swift` 与
-`native/android/*.kt`。这些文件首次缺失时由 CLI 脚手架创建，之后不会覆盖；
+当前实现把可编辑 action 实现放在 `src/native/ios/*.swift` 与
+`src/native/android/*.kt`。这些文件首次缺失时由 CLI 脚手架创建，之后不会覆盖；
 `.aic/ios` 和 `.aic/android` 宿主工程会在每次开发运行时复制它们。
 
 ---
@@ -224,18 +224,19 @@ Android 同样不依赖 Android Studio GUI。CLI 生成 `.aic/android` Gradle/Co
 oscarui/
 ├── OscarUI_方案.md
 ├── AGENTS.md                  # AI 行为约束（强制）
+├── src/                       # App 源码与意图
+│   ├── app.config.yaml        # App 标识、权限、链接和平台配置源码
+│   ├── theme/
+│   │   └── tokens.yaml
+│   ├── screens/
+│   │   └── login.ui.yaml      # 页面 IR
+│   ├── components/
+│   │   └── projectCard.ui.yaml # 可复用组件 IR
+│   └── native/
+│       ├── ios/               # 手写 iOS Action 实现，不会被生成覆盖
+│       └── android/           # 手写 Android Action 实现，不会被生成覆盖
 ├── schema/
 │   └── ui-ir.schema.json     # IR 的 JSON Schema（硬约束）
-├── theme/
-│   └── tokens.yaml
-├── screens/
-│   └── login.ui.yaml         # 源码：人和 AI 只改这里
-├── components/
-│   └── projectCard.ui.yaml   # 可复用组件 IR
-├── app.config.yaml            # App 标识、权限、链接和平台配置源码
-├── native/
-│   ├── ios/                  # 手写 iOS Action 实现，不会被生成覆盖
-│   └── android/              # 手写 Android Action 实现，不会被生成覆盖
 ├── compiler/                  # 确定性编译器（Node.js，无 LLM）
 │   ├── aic.mjs               # CLI: validate / build
 │   ├── swiftui.mjs           # IR → SwiftUI 模板

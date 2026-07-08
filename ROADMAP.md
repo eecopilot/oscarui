@@ -32,7 +32,7 @@ This file tracks project phases. README files should describe the project and da
 
 ## Phase 2.5: Component System
 
-- [x] Reusable component IR in `components/*.ui.yaml`
+- [x] Reusable component IR in `src/components/*.ui.yaml`
 - [x] Component props for scalar values and action callbacks
 - [x] Component call nodes inside screens and list templates
 - [x] SwiftUI reusable `View` generation
@@ -41,7 +41,7 @@ This file tracks project phases. README files should describe the project and da
 
 ## Phase 2.6: Native App Manifest
 
-- [x] Unified native app config in `app.config.yaml`
+- [x] Unified native app config in `src/app.config.yaml`
 - [x] App config schema and semantic validation
 - [x] iOS Info.plist and build setting generation
 - [x] Android Manifest and Gradle config generation

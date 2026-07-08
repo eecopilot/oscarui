@@ -47,12 +47,12 @@ function emitAndroidActions(ir) {
   return lines.join('\n');
 }
 
-export function ensureNativeActionStubs(root, screens) {
+export function ensureNativeActionStubs(root, screens, nativeDir = path.join(root, 'src/native')) {
   const created = [];
 
   for (const { ir } of screens) {
-    const iosFile = path.join(root, 'native/ios', `${ir.screen}ActionsImpl.swift`);
-    const androidFile = path.join(root, 'native/android', `${ir.screen}ActionsImpl.kt`);
+    const iosFile = path.join(nativeDir, 'ios', `${ir.screen}ActionsImpl.swift`);
+    const androidFile = path.join(nativeDir, 'android', `${ir.screen}ActionsImpl.kt`);
 
     if (writeIfMissing(iosFile, emitIosActions(ir))) {
       created.push(path.relative(root, iosFile));

@@ -1,19 +1,19 @@
 # Agent Workflow
 
-This project is OscarUI, a prototype open-source cross-platform UI renderer/compiler. The source of truth for UI is the IR in `screens/*.ui.yaml` and `components/*.ui.yaml`; the source of truth for native app metadata is `app.config.yaml`; generated native code and host config are build output.
+This project is OscarUI, a prototype open-source cross-platform UI renderer/compiler. The source of truth for UI is the IR in `src/screens/*.ui.yaml` and `src/components/*.ui.yaml`; the source of truth for native app metadata is `src/app.config.yaml`; generated native code and host config are build output.
 
 ## Core Rules
 
 - Do not edit files under `generated/` by hand.
 - Do not create or modify SwiftUI or Jetpack Compose output directly.
-- For UI changes, edit the smallest possible diff in `screens/*.ui.yaml` or `components/*.ui.yaml`.
+- For UI changes, edit the smallest possible diff in `src/screens/*.ui.yaml` or `src/components/*.ui.yaml`.
 - If a requested UI capability is not expressible by the schema, update `schema/ui-ir.schema.json` and the deterministic compiler templates before using it in IR.
-- Keep design values tokenized. Use names from `theme/tokens.yaml` instead of raw spacing, radius, color, or typography values in IR.
-- Keep native app metadata centralized in `app.config.yaml`; do not patch generated Info.plist, AndroidManifest.xml, Gradle app ids, versions, or permissions by hand.
+- Keep design values tokenized. Use names from `src/theme/tokens.yaml` instead of raw spacing, radius, color, or typography values in IR.
+- Keep native app metadata centralized in `src/app.config.yaml`; do not patch generated Info.plist, AndroidManifest.xml, Gradle app ids, versions, or permissions by hand.
 
 ## Required Loop
 
-After changing `app.config.yaml`, any `screens/*.ui.yaml`, `components/*.ui.yaml`, `schema/*.schema.json`, `theme/tokens.yaml`, or compiler file:
+After changing `src/app.config.yaml`, any `src/screens/*.ui.yaml`, `src/components/*.ui.yaml`, `schema/*.schema.json`, `src/theme/tokens.yaml`, or compiler file:
 
 1. Run `npm run validate`.
 2. Fix schema or semantic errors in the source files, not in generated output.
@@ -34,15 +34,15 @@ After changing `app.config.yaml`, any `screens/*.ui.yaml`, `components/*.ui.yaml
 
 ## File Ownership
 
-- `screens/*.ui.yaml`: editable UI intent source.
-- `components/*.ui.yaml`: editable reusable component IR source.
-- `app.config.yaml`: editable app identity, version, platform, permission, privacy, link, and orientation source.
+- `src/screens/*.ui.yaml`: editable UI intent source.
+- `src/components/*.ui.yaml`: editable reusable component IR source.
+- `src/app.config.yaml`: editable app identity, version, platform, permission, privacy, link, and orientation source.
 - `schema/ui-ir.schema.json`: editable schema contract for allowed UI concepts.
 - `schema/app-config.schema.json`: editable schema contract for allowed native app manifest concepts.
-- `theme/tokens.yaml`: editable design token source.
+- `src/theme/tokens.yaml`: editable design token source.
 - `compiler/*.mjs`: editable deterministic compiler implementation.
-- `native/ios/*.swift`: editable hand-written iOS action implementations and other native code copied into the generated host.
-- `native/android/*.kt`: editable hand-written Android action implementations and other native code copied into the generated host.
+- `src/native/ios/*.swift`: editable hand-written iOS action implementations and other native code copied into the generated host.
+- `src/native/android/*.kt`: editable hand-written Android action implementations and other native code copied into the generated host.
 - `generated/ios/*.swift`: generated SwiftUI screen, theme, and app shell output; do not hand edit.
 - `generated/android/*.kt`: generated output, do not hand edit.
 - `.aic/ios/`: generated local iOS host project and build cache; safe to delete and regenerate.

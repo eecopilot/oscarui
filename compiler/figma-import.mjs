@@ -63,7 +63,7 @@ export function importFigma(root, inputFile, outputFile) {
     actions: [],
   };
 
-  const target = path.resolve(root, outputFile ?? path.join('screens', `${screen.charAt(0).toLowerCase()}${screen.slice(1)}.ui.yaml`));
+  const target = path.resolve(root, outputFile ?? path.join('src/screens', `${screen.charAt(0).toLowerCase()}${screen.slice(1)}.ui.yaml`));
   fs.mkdirSync(path.dirname(target), { recursive: true });
   fs.writeFileSync(target, YAML.stringify(ir));
   console.log(`→ ${path.relative(root, target)}`);

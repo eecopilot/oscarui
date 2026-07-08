@@ -180,7 +180,7 @@ function copyGeneratedSwift(root, sourceDir, appDir) {
 }
 
 function copyNativeSwift(root, appDir) {
-  const sourceDir = path.join(root, 'native/ios');
+  const sourceDir = path.join(root, 'src/native/ios');
   if (!fs.existsSync(sourceDir)) return [];
 
   const files = fs.readdirSync(sourceDir)
