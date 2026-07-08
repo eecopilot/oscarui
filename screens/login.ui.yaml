@@ -1,0 +1,49 @@
+screen: Login
+title: Login
+
+layout:
+  safeArea: true
+  contentPosition: top
+  contentWidth: compact
+
+state:
+  - name: email
+    type: string
+  - name: password
+    type: string
+
+body:
+  - type: column
+    spacing: normal
+    padding: normal
+    align: center
+    children:
+      - type: text
+        role: title
+        value: Welcome back
+      - type: text
+        role: caption
+        value: Sign in to continue
+        color: textSecondary
+      - type: textField
+        bind: email
+        placeholder: Email
+        keyboard: email
+      - type: textField
+        bind: password
+        placeholder: Password
+        secure: true
+      - type: button
+        role: primary
+        label: Sign in
+        action: login
+      - type: button
+        role: ghost
+        label: Forgot password?
+        action: forgotPassword
+
+actions:
+  - name: login
+    steps: [validate, call_api, save_token, navigate]
+  - name: forgotPassword
+    steps: [navigate]

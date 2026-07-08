@@ -1,0 +1,344 @@
+import fs from 'node:fs';
+import path from 'node:path';
+
+export const ANDROID_APP_NAME = 'OscarUI';
+export const ANDROID_APPLICATION_ID = 'app.generated.oscarui';
+export const ANDROID_NAMESPACE = 'app.generated';
+export const ANDROID_COMPILE_SDK = 35;
+export const ANDROID_MIN_SDK = 23;
+export const ANDROID_TARGET_SDK = 35;
+export const ANDROID_GRADLE_VERSION = '8.10.2';
+export const ANDROID_HOST_TEMPLATE = 'gradle-compose-android35-app';
+
+function writeFile(file, contents) {
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(file, contents);
+}
+
+function resetPath(dir) {
+  fs.rmSync(dir, { recursive: true, force: true });
+  fs.mkdirSync(dir, { recursive: true });
+}
+
+function copyGeneratedKotlin(root, sourceDir, targetDir) {
+  const files = fs.readdirSync(sourceDir)
+    .filter(file => file.endsWith('.kt'))
+    .sort();
+
+  if (!files.length) {
+    throw new Error('android host: no generated Kotlin files found. Run build first.');
+  }
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  for (const file of files) {
+    fs.copyFileSync(path.join(sourceDir, file), path.join(targetDir, file));
+  }
+
+  return files.map(file => ({
+    name: file,
+    path: path.relative(root, path.join(targetDir, file)),
+  }));
+}
+
+function copyNativeKotlin(root, targetDir) {
+  const sourceDir = path.join(root, 'native/android');
+  if (!fs.existsSync(sourceDir)) return [];
+
+  const files = fs.readdirSync(sourceDir)
+    .filter(file => file.endsWith('.kt'))
+    .sort();
+
+  fs.mkdirSync(targetDir, { recursive: true });
+  for (const file of files) {
+    fs.copyFileSync(path.join(sourceDir, file), path.join(targetDir, file));
+  }
+
+  return files.map(file => ({
+    name: file,
+    path: path.relative(root, path.join(targetDir, file)),
+  }));
+}
+
+export function defaultAndroidHome() {
+  const candidates = [
+    process.env.ANDROID_HOME,
+    process.env.ANDROID_SDK_ROOT,
+    '/opt/homebrew/share/android-commandlinetools',
+    path.join(process.env.HOME ?? '', 'Library/Android/sdk'),
+  ].filter(Boolean);
+
+  return candidates.find(candidate => fs.existsSync(candidate)) ?? '';
+}
+
+export function detectJava17Home() {
+  const candidates = [
+    '/Library/Java/JavaVirtualMachines/jdk-17.jdk/Contents/Home',
+    process.env.JAVA_HOME,
+  ].filter(Boolean);
+
+  return candidates.find(candidate => fs.existsSync(path.join(candidate, 'bin/java'))) ?? '';
+}
+
+function emitSettingsGradle() {
+  return `pluginManagement {
+    repositories {
+        google()
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+rootProject.name = "${ANDROID_APP_NAME}"
+include(":app")
+`;
+}
+
+function emitRootBuildGradle() {
+  return `plugins {
+    id("com.android.application") version "8.7.3" apply false
+    id("org.jetbrains.kotlin.android") version "2.0.21" apply false
+    id("org.jetbrains.kotlin.plugin.compose") version "2.0.21" apply false
+}
+`;
+}
+
+function emitAppBuildGradle() {
+  return `plugins {
+    id("com.android.application")
+    id("org.jetbrains.kotlin.android")
+    id("org.jetbrains.kotlin.plugin.compose")
+}
+
+android {
+    namespace = "${ANDROID_NAMESPACE}"
+    compileSdk = ${ANDROID_COMPILE_SDK}
+
+    defaultConfig {
+        applicationId = "${ANDROID_APPLICATION_ID}"
+        minSdk = ${ANDROID_MIN_SDK}
+        targetSdk = ${ANDROID_TARGET_SDK}
+        versionCode = 1
+        versionName = "1.0"
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
+    buildFeatures {
+        compose = true
+    }
+}
+
+dependencies {
+    implementation(platform("androidx.compose:compose-bom:2024.10.00"))
+    implementation("androidx.activity:activity-compose:1.9.3")
+    implementation("androidx.compose.material3:material3")
+    implementation("androidx.compose.ui:ui")
+    implementation("androidx.compose.ui:ui-tooling-preview")
+    implementation("io.coil-kt:coil-compose:2.7.0")
+
+    debugImplementation("androidx.compose.ui:ui-tooling")
+}
+`;
+}
+
+function emitGradleProperties(javaHome) {
+  const lines = [
+    'org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8',
+    'android.useAndroidX=true',
+    'android.nonTransitiveRClass=true',
+  ];
+  if (javaHome) lines.push(`org.gradle.java.home=${javaHome.replace(/\\/g, '/')}`);
+  lines.push(...emitProxyProperties());
+  return `${lines.join('\n')}\n`;
+}
+
+function parseProxyUrl(value) {
+  if (!value) return null;
+  try {
+    const url = new URL(value);
+    if (!['http:', 'https:'].includes(url.protocol)) return null;
+    return {
+      host: url.hostname,
+      port: url.port || (url.protocol === 'https:' ? '443' : '80'),
+      username: decodeURIComponent(url.username || ''),
+      password: decodeURIComponent(url.password || ''),
+    };
+  } catch {
+    return null;
+  }
+}
+
+function emitProxyProperties() {
+  const http = parseProxyUrl(process.env.HTTP_PROXY ?? process.env.http_proxy);
+  const https = parseProxyUrl(process.env.HTTPS_PROXY ?? process.env.https_proxy) ?? http;
+  const lines = [];
+
+  function pushProxy(prefix, proxy) {
+    if (!proxy) return;
+    lines.push(`systemProp.${prefix}.proxyHost=${proxy.host}`);
+    lines.push(`systemProp.${prefix}.proxyPort=${proxy.port}`);
+    if (proxy.username) lines.push(`systemProp.${prefix}.proxyUser=${proxy.username}`);
+    if (proxy.password) lines.push(`systemProp.${prefix}.proxyPassword=${proxy.password}`);
+  }
+
+  pushProxy('http', http);
+  pushProxy('https', https);
+
+  if (http || https) {
+    const noProxy = process.env.NO_PROXY ?? process.env.no_proxy ?? 'localhost,127.0.0.1,::1';
+    const nonProxyHosts = noProxy
+      .split(',')
+      .map(value => value.trim())
+      .filter(Boolean)
+      .map(value => value === '*' ? '*' : value.replace(/^\./, '*.'))
+      .join('|');
+    if (nonProxyHosts) {
+      lines.push(`systemProp.http.nonProxyHosts=${nonProxyHosts}`);
+      lines.push(`systemProp.https.nonProxyHosts=${nonProxyHosts}`);
+    }
+  }
+
+  return lines;
+}
+
+function emitLocalProperties(androidHome) {
+  return `sdk.dir=${androidHome.replace(/\\/g, '/')}\n`;
+}
+
+function emitManifest() {
+  return `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application
+        android:label="${ANDROID_APP_NAME}"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>
+`;
+}
+
+function emitStyles() {
+  return `<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar" />
+</resources>
+`;
+}
+
+function emitMainActivity(entryScreen) {
+  const actionClass = `${entryScreen}ActionsImpl`;
+  const lines = [
+    'package app.generated',
+    '',
+    'import android.os.Bundle',
+    'import androidx.activity.ComponentActivity',
+    'import androidx.activity.compose.setContent',
+    'import androidx.compose.foundation.background',
+    'import androidx.compose.foundation.layout.fillMaxSize',
+    'import androidx.compose.material3.MaterialTheme',
+    'import androidx.compose.material3.Surface',
+    'import androidx.compose.runtime.Composable',
+    'import androidx.compose.ui.Modifier',
+    '',
+    'class MainActivity : ComponentActivity() {',
+    '    override fun onCreate(savedInstanceState: Bundle?) {',
+    '        super.onCreate(savedInstanceState)',
+    '        setContent {',
+    '            OscarUIRoot()',
+    '        }',
+    '    }',
+    '}',
+    '',
+    '@Composable',
+    'private fun OscarUIRoot() {',
+    '    MaterialTheme {',
+    '        Surface(',
+    '            modifier = Modifier',
+    '                .fillMaxSize()',
+    '                .background(Theme.Colors.background),',
+    '            color = Theme.Colors.background',
+    '        ) {',
+    `            ${entryScreen}Screen(actions = ${actionClass}())`,
+    '        }',
+    '    }',
+    '}',
+  ];
+  return lines.join('\n');
+}
+
+export function prepareAndroidHost(root, screens) {
+  const androidRoot = path.join(root, '.aic/android');
+  const appDir = path.join(androidRoot, 'app');
+  const sourceDir = path.join(root, 'generated/android');
+  const packageDir = path.join(appDir, 'src/main/java/app/generated');
+  const androidHome = defaultAndroidHome();
+  const javaHome = detectJava17Home();
+  const entry = screens[0]?.ir;
+
+  if (!entry) throw new Error('android host: at least one screen is required');
+  if (!androidHome) throw new Error('android host: Android SDK not found. Set ANDROID_HOME.');
+
+  resetPath(appDir);
+
+  const sourceFiles = [
+    ...copyGeneratedKotlin(root, sourceDir, packageDir),
+    ...copyNativeKotlin(root, packageDir),
+  ];
+  writeFile(path.join(androidRoot, 'settings.gradle.kts'), emitSettingsGradle());
+  writeFile(path.join(androidRoot, 'build.gradle.kts'), emitRootBuildGradle());
+  writeFile(path.join(androidRoot, 'gradle.properties'), emitGradleProperties(javaHome));
+  writeFile(path.join(androidRoot, 'local.properties'), emitLocalProperties(androidHome));
+  writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle());
+  writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest());
+  writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles());
+  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entry.screen));
+
+  return {
+    appName: ANDROID_APP_NAME,
+    applicationId: ANDROID_APPLICATION_ID,
+    template: ANDROID_HOST_TEMPLATE,
+    androidHome,
+    androidRoot,
+    gradleProject: androidRoot,
+    sourceFiles,
+  };
+}
+
+export function androidCommandPlan(root, avdName = process.env.AIC_ANDROID_AVD || 'oscarui_api35') {
+  const androidRoot = path.join(root, '.aic/android');
+  const apk = path.join(androidRoot, 'app/build/outputs/apk/debug/app-debug.apk');
+  return [
+    ['gradle', ['--no-daemon', '--console=plain', '-p', androidRoot, ':app:assembleDebug']],
+    ['emulator', ['-avd', avdName]],
+    ['adb', ['wait-for-device']],
+    ['adb', ['install', '-r', apk]],
+    ['adb', ['shell', 'am', 'start', '-n', `${ANDROID_APPLICATION_ID}/${ANDROID_NAMESPACE}.MainActivity`]],
+  ];
+}
+
+export function formatCommand([command, args], root) {
+  return [command, ...args].map(part => {
+    const normalized = part.startsWith(root) ? path.relative(root, part) : part;
+    return /\s/.test(normalized) ? JSON.stringify(normalized) : normalized;
+  }).join(' ');
+}

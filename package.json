@@ -1,0 +1,27 @@
+{
+  "name": "oscarui",
+  "version": "1.0.0",
+  "description": "OscarUI: Open Source Cross Apple/Android Renderer",
+  "main": "index.js",
+  "scripts": {
+    "validate": "node compiler/aic.mjs validate",
+    "build": "node compiler/aic.mjs build",
+    "doctor:ios": "node compiler/aic.mjs doctor:ios",
+    "dry-run:ios": "node compiler/aic.mjs dry-run:ios",
+    "dev:ios": "node compiler/aic.mjs dev:ios",
+    "doctor:android": "node compiler/aic.mjs doctor:android",
+    "dry-run:android": "node compiler/aic.mjs dry-run:android",
+    "dev:android": "node compiler/aic.mjs dev:android",
+    "snapshots": "node compiler/aic.mjs snapshots",
+    "verify:ui": "node compiler/aic.mjs snapshots",
+    "test": "npm run validate && npm run build"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "ajv": "^8.20.0",
+    "yaml": "^2.9.0"
+  }
+}

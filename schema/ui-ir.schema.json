@@ -1,0 +1,160 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui-ir.schema.json",
+  "title": "UI IR Screen",
+  "type": "object",
+  "required": ["screen", "body"],
+  "additionalProperties": false,
+  "properties": {
+    "screen": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "Screen 名，PascalCase，用于生成类型名"
+    },
+    "title": { "type": "string" },
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "safeArea": { "type": "boolean" },
+        "contentPosition": { "enum": ["top", "center"] },
+        "contentWidth": { "enum": ["compact", "normal", "wide", "fill"] }
+      }
+    },
+    "state": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "type": { "enum": ["string", "bool", "int", "double"] },
+          "default": { "type": ["string", "boolean", "number"] }
+        }
+      }
+    },
+    "body": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "$ref": "#/$defs/node" }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "steps": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "spacing": { "enum": ["none", "tight", "normal", "loose"] },
+    "node": {
+      "type": "object",
+      "required": ["type"],
+      "discriminator": { "propertyName": "type" },
+      "oneOf": [
+        { "$ref": "#/$defs/column" },
+        { "$ref": "#/$defs/row" },
+        { "$ref": "#/$defs/text" },
+        { "$ref": "#/$defs/image" },
+        { "$ref": "#/$defs/button" },
+        { "$ref": "#/$defs/textField" },
+        { "$ref": "#/$defs/list" },
+        { "$ref": "#/$defs/spacer" }
+      ]
+    },
+    "column": {
+      "type": "object",
+      "required": ["type", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "column" },
+        "spacing": { "$ref": "#/$defs/spacing" },
+        "padding": { "$ref": "#/$defs/spacing" },
+        "align": { "enum": ["start", "center", "end"] },
+        "children": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "row": {
+      "type": "object",
+      "required": ["type", "children"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "row" },
+        "spacing": { "$ref": "#/$defs/spacing" },
+        "padding": { "$ref": "#/$defs/spacing" },
+        "align": { "enum": ["start", "center", "end"] },
+        "children": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "text": {
+      "type": "object",
+      "required": ["type", "value"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "text" },
+        "value": { "type": "string" },
+        "role": { "enum": ["title", "heading", "body", "caption"] },
+        "color": { "enum": ["textPrimary", "textSecondary", "primary"] }
+      }
+    },
+    "image": {
+      "type": "object",
+      "required": ["type", "url"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "image" },
+        "url": { "type": "string" },
+        "height": { "type": "integer", "minimum": 1, "maximum": 1000 },
+        "radius": { "enum": ["none", "small", "normal", "large"] }
+      }
+    },
+    "button": {
+      "type": "object",
+      "required": ["type", "label", "action"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "button" },
+        "label": { "type": "string" },
+        "role": { "enum": ["primary", "secondary", "ghost"] },
+        "action": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" }
+      }
+    },
+    "textField": {
+      "type": "object",
+      "required": ["type", "bind"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "textField" },
+        "bind": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+        "placeholder": { "type": "string" },
+        "secure": { "type": "boolean" },
+        "keyboard": { "enum": ["default", "email", "number", "phone"] }
+      }
+    },
+    "list": {
+      "type": "object",
+      "required": ["type", "itemTemplate"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "list" },
+        "bind": { "type": "string" },
+        "itemTemplate": { "type": "array", "minItems": 1, "items": { "$ref": "#/$defs/node" } }
+      }
+    },
+    "spacer": {
+      "type": "object",
+      "required": ["type"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "spacer" }
+      }
+    }
+  }
+}
