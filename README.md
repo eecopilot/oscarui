@@ -108,6 +108,14 @@ Import a constrained Figma JSON export into a draft screen:
 npm run figma:import -- path/to/figma.json screens/imported.ui.yaml
 ```
 
+Or import directly from a Figma file or node URL:
+
+```sh
+FIGMA_TOKEN=figd_xxx npm run figma:import -- "https://www.figma.com/design/FILE_KEY/Name?node-id=1-2" screens/imported.ui.yaml
+```
+
+`FIGMA_TOKEN` may be a Figma personal access token. Quote Figma URLs in the shell because they often contain `?` and `&`.
+
 Validate plugin manifests:
 
 ```sh

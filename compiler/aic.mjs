@@ -456,37 +456,42 @@ function validatePlugins() {
 }
 
 const cmd = process.argv[2];
-if (cmd === 'validate') validate();
-else if (cmd === 'build') build();
-else if (cmd === 'author:loop') runAuthorLoop(ROOT);
-else if (cmd === 'figma:import') importFigma(ROOT, process.argv[3], process.argv[4]);
-else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens);
-else if (cmd === 'plugins:validate') validatePlugins();
-else if (cmd === 'doctor:ios') doctorIos() || process.exit(1);
-else if (cmd === 'doctor:android') doctorAndroid() || process.exit(1);
-else if (cmd === 'dry-run:ios') {
-  const { appConfig } = build();
-  dryRunIos(ROOT, appConfig);
-}
-else if (cmd === 'dev:ios') {
-  const { appConfig } = build();
-  devIos(ROOT, appConfig);
-}
-else if (cmd === 'dry-run:android') {
-  const { screens, appConfig } = build();
-  dryRunAndroid(ROOT, screens, appConfig);
-}
-else if (cmd === 'dev:android') {
-  const { screens, appConfig } = build();
-  devAndroid(ROOT, screens, appConfig);
-}
-else if (cmd === 'snapshots') {
-  const { screens, appConfig } = build();
-  devIos(ROOT, appConfig);
-  devAndroid(ROOT, screens, appConfig);
-  captureSnapshots(ROOT, screens);
-}
-else {
-  console.log('usage: node compiler/aic.mjs <validate|build|author:loop|figma:import|snapshots:diff|plugins:validate|doctor:ios|dry-run:ios|dev:ios|doctor:android|dry-run:android|dev:android|snapshots>');
+try {
+  if (cmd === 'validate') validate();
+  else if (cmd === 'build') build();
+  else if (cmd === 'author:loop') runAuthorLoop(ROOT);
+  else if (cmd === 'figma:import') await importFigma(ROOT, process.argv[3], process.argv[4]);
+  else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens);
+  else if (cmd === 'plugins:validate') validatePlugins();
+  else if (cmd === 'doctor:ios') doctorIos() || process.exit(1);
+  else if (cmd === 'doctor:android') doctorAndroid() || process.exit(1);
+  else if (cmd === 'dry-run:ios') {
+    const { appConfig } = build();
+    dryRunIos(ROOT, appConfig);
+  }
+  else if (cmd === 'dev:ios') {
+    const { appConfig } = build();
+    devIos(ROOT, appConfig);
+  }
+  else if (cmd === 'dry-run:android') {
+    const { screens, appConfig } = build();
+    dryRunAndroid(ROOT, screens, appConfig);
+  }
+  else if (cmd === 'dev:android') {
+    const { screens, appConfig } = build();
+    devAndroid(ROOT, screens, appConfig);
+  }
+  else if (cmd === 'snapshots') {
+    const { screens, appConfig } = build();
+    devIos(ROOT, appConfig);
+    devAndroid(ROOT, screens, appConfig);
+    captureSnapshots(ROOT, screens);
+  }
+  else {
+    console.log('usage: node compiler/aic.mjs <validate|build|author:loop|figma:import|snapshots:diff|plugins:validate|doctor:ios|dry-run:ios|dev:ios|doctor:android|dry-run:android|dev:android|snapshots>');
+    process.exit(1);
+  }
+} catch (error) {
+  console.error(`✗ ${error.message}`);
   process.exit(1);
 }

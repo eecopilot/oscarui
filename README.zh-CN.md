@@ -108,6 +108,14 @@ npm run dev:android
 npm run figma:import -- path/to/figma.json screens/imported.ui.yaml
 ```
 
+也可以直接从 Figma 文件或节点 URL 导入：
+
+```sh
+FIGMA_TOKEN=figd_xxx npm run figma:import -- "https://www.figma.com/design/FILE_KEY/Name?node-id=1-2" screens/imported.ui.yaml
+```
+
+`FIGMA_TOKEN` 可以用 Figma personal access token。Figma URL 里通常有 `?` 和 `&`，在 shell 里要加引号。
+
 校验插件 manifest：
 
 ```sh

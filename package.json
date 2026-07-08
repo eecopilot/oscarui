@@ -26,6 +26,7 @@
   "type": "commonjs",
   "dependencies": {
     "ajv": "^8.20.0",
+    "figma-api": "^2.2.1-beta",
     "yaml": "^2.9.0"
   }
 }
