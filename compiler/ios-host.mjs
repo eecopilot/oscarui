@@ -50,6 +50,16 @@ function emitInfoPlist(config = {}) {
     '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">',
     '<plist version="1.0">',
     '<dict>',
+    '    <key>CFBundleExecutable</key>',
+    '    <string>$(EXECUTABLE_NAME)</string>',
+    '    <key>CFBundleIdentifier</key>',
+    '    <string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>',
+    '    <key>CFBundleInfoDictionaryVersion</key>',
+    '    <string>6.0</string>',
+    '    <key>CFBundleName</key>',
+    '    <string>$(PRODUCT_NAME)</string>',
+    '    <key>CFBundlePackageType</key>',
+    '    <string>APPL</string>',
     '    <key>CFBundleDisplayName</key>',
     `    <string>${plistEscape(ios.displayName)}</string>`,
     '    <key>CFBundleShortVersionString</key>',
@@ -324,7 +334,7 @@ function buildSettings(configuration, config = {}) {
     '                DEVELOPMENT_TEAM = "";',
     '                ENABLE_PREVIEWS = YES;',
     '                GENERATE_INFOPLIST_FILE = NO;',
-    `                INFOPLIST_FILE = ${ios.appName}/Info.plist;`,
+    '                INFOPLIST_FILE = GeneratedInfo.plist;',
     '                INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;',
     '                INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;',
     '                INFOPLIST_KEY_UILaunchScreen_Generation = YES;',
@@ -648,7 +658,7 @@ export function prepareIosHost(root, config = {}) {
   writeFile(path.join(appDir, 'Assets.xcassets/Contents.json'), emitAssetCatalogContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/Contents.json'), emitAppIconContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AccentColor.colorset/Contents.json'), emitAccentColorContents());
-  writeFile(path.join(appDir, 'Info.plist'), emitInfoPlist(config));
+  writeFile(path.join(iosRoot, 'GeneratedInfo.plist'), emitInfoPlist(config));
   writeFile(path.join(appDir, `${ios.appName}.entitlements`), emitEntitlements(config));
   writeFile(path.join(projectDir, 'project.pbxproj'), emitProject(config));
   writeFile(path.join(projectDir, 'project.xcworkspace/contents.xcworkspacedata'), emitWorkspace());

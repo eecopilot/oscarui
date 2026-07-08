@@ -8,6 +8,7 @@ export function emitAppSwift(screens, appName = 'OscarUI') {
   const lines = [
     `// ${HEADER}`,
     'import SwiftUI',
+    'import Combine',
     '',
     'enum OscarRoute: Hashable {',
     ...routes.map(screen => `    case ${camel(screen)}`),
