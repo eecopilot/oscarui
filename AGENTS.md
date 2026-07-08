@@ -1,18 +1,18 @@
 # Agent Workflow
 
-This project is OscarUI, a prototype open-source cross-platform UI renderer/compiler. The source of truth for UI is the IR in `screens/*.ui.yaml`; generated native code is build output.
+This project is OscarUI, a prototype open-source cross-platform UI renderer/compiler. The source of truth for UI is the IR in `screens/*.ui.yaml` and `components/*.ui.yaml`; generated native code is build output.
 
 ## Core Rules
 
 - Do not edit files under `generated/` by hand.
 - Do not create or modify SwiftUI or Jetpack Compose output directly.
-- For UI changes, edit the smallest possible diff in `screens/*.ui.yaml`.
+- For UI changes, edit the smallest possible diff in `screens/*.ui.yaml` or `components/*.ui.yaml`.
 - If a requested UI capability is not expressible by the schema, update `schema/ui-ir.schema.json` and the deterministic compiler templates before using it in IR.
-- Keep design values tokenized. Use names from `theme/tokens.yaml` instead of raw spacing, radius, color, or typography values in screen IR.
+- Keep design values tokenized. Use names from `theme/tokens.yaml` instead of raw spacing, radius, color, or typography values in IR.
 
 ## Required Loop
 
-After changing any `screens/*.ui.yaml`, `schema/ui-ir.schema.json`, `theme/tokens.yaml`, or compiler file:
+After changing any `screens/*.ui.yaml`, `components/*.ui.yaml`, `schema/ui-ir.schema.json`, `theme/tokens.yaml`, or compiler file:
 
 1. Run `npm run validate`.
 2. Fix schema or semantic errors in the source files, not in generated output.
@@ -34,6 +34,7 @@ After changing any `screens/*.ui.yaml`, `schema/ui-ir.schema.json`, `theme/token
 ## File Ownership
 
 - `screens/*.ui.yaml`: editable UI intent source.
+- `components/*.ui.yaml`: editable reusable component IR source.
 - `schema/ui-ir.schema.json`: editable schema contract for allowed UI concepts.
 - `theme/tokens.yaml`: editable design token source.
 - `compiler/*.mjs`: editable deterministic compiler implementation.
@@ -47,6 +48,7 @@ After changing any `screens/*.ui.yaml`, `schema/ui-ir.schema.json`, `theme/token
 ## Naming And Scope
 
 - Screen names are PascalCase and become native type names.
-- State and action names are lower camelCase.
+- Component names are PascalCase and become reusable native type names.
+- State, prop, and action names are lower camelCase.
 - Actions declared in IR are only call sites; platform-specific action behavior belongs outside generated files.
 - Prefer extending the closed component set deliberately over adding one-off escape hatches.

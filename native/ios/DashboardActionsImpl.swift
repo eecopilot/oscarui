@@ -2,6 +2,10 @@
 import Foundation
 
 final class DashboardActionsImpl: DashboardActions {
+    func selectProject() {
+        print("Dashboard.selectProject")
+    }
+
     func goBack() {
         print("Dashboard.goBack")
     }

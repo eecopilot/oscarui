@@ -1,9 +1,13 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "ui-ir.schema.json",
-  "title": "UI IR Screen",
+  "title": "UI IR",
   "type": "object",
-  "required": ["screen", "body"],
+  "required": ["body"],
+  "oneOf": [
+    { "required": ["screen"], "not": { "required": ["component"] } },
+    { "required": ["component"], "not": { "required": ["screen"] } }
+  ],
   "additionalProperties": false,
   "properties": {
     "screen": {
@@ -11,8 +15,25 @@
       "pattern": "^[A-Z][A-Za-z0-9]*$",
       "description": "Screen 名，PascalCase，用于生成类型名"
     },
+    "component": {
+      "type": "string",
+      "pattern": "^[A-Z][A-Za-z0-9]*$",
+      "description": "Component 名，PascalCase，用于生成类型名"
+    },
     "entry": { "type": "boolean" },
     "title": { "type": "string" },
+    "props": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "type"],
+        "additionalProperties": false,
+        "properties": {
+          "name": { "type": "string", "pattern": "^[a-z][A-Za-z0-9]*$" },
+          "type": { "$ref": "#/$defs/propType" }
+        }
+      }
+    },
     "layout": {
       "type": "object",
       "additionalProperties": false,
@@ -48,6 +69,7 @@
   "$defs": {
     "spacing": { "enum": ["none", "tight", "normal", "loose"] },
     "scalarType": { "enum": ["string", "bool", "int", "double"] },
+    "propType": { "enum": ["string", "bool", "int", "double", "action"] },
     "state": {
       "type": "object",
       "required": ["name", "type"],
@@ -149,6 +171,7 @@
         { "$ref": "#/$defs/button" },
         { "$ref": "#/$defs/textField" },
         { "$ref": "#/$defs/list" },
+        { "$ref": "#/$defs/componentNode" },
         { "$ref": "#/$defs/spacer" }
       ]
     },
@@ -248,9 +271,33 @@
       "required": ["type"],
       "additionalProperties": false,
       "properties": {
-        "type": { "const": "spacer" }
-        ,
+        "type": { "const": "spacer" },
         "visibleWhen": { "$ref": "#/$defs/condition" }
+      }
+    },
+    "propValue": {
+      "type": "string",
+      "pattern": "^(item\\.)?[a-z][A-Za-z0-9]*$"
+    },
+    "componentNode": {
+      "type": "object",
+      "required": ["type", "name"],
+      "additionalProperties": false,
+      "properties": {
+        "type": { "const": "component" },
+        "visibleWhen": { "$ref": "#/$defs/condition" },
+        "name": { "type": "string", "pattern": "^[A-Z][A-Za-z0-9]*$" },
+        "props": {
+          "type": "object",
+          "additionalProperties": {
+            "anyOf": [
+              { "$ref": "#/$defs/propValue" },
+              { "type": "string" },
+              { "type": "boolean" },
+              { "type": "number" }
+            ]
+          }
+        }
       }
     }
   }

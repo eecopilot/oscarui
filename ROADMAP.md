@@ -30,6 +30,15 @@ This file tracks project phases. README files should describe the project and da
 - [x] Snapshot diff report for captured platform screenshots
 - [x] Plugin manifest schema and validation command
 
+## Phase 2.5: Component System
+
+- [x] Reusable component IR in `components/*.ui.yaml`
+- [x] Component props for scalar values and action callbacks
+- [x] Component call nodes inside screens and list templates
+- [x] SwiftUI reusable `View` generation
+- [x] Compose reusable `@Composable` generation
+- [x] Semantic validation for component names, required props, unknown props, and callback mapping
+
 ## Phase 3: Runtime
 
 - [ ] Runtime IR interpreter + hot update path

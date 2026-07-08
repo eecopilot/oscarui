@@ -4,8 +4,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import YAML from 'yaml';
 import { Ajv2020 as Ajv } from 'ajv/dist/2020.js';
-import { emitThemeSwift, emitScreenSwift } from './swiftui.mjs';
-import { emitThemeKotlin, emitScreenKotlin } from './compose.mjs';
+import { emitThemeSwift, emitScreenSwift, emitComponentSwift } from './swiftui.mjs';
+import { emitThemeKotlin, emitScreenKotlin, emitComponentKotlin } from './compose.mjs';
 import { emitAppSwift } from './ios-shell.mjs';
 import { doctorIos, devIos, dryRunIos } from './ios-dev.mjs';
 import { doctorAndroid, devAndroid, dryRunAndroid } from './android-dev.mjs';
@@ -28,6 +28,15 @@ function loadTokens() {
 
 function loadScreens() {
   const dir = path.join(ROOT, 'screens');
+  if (!fs.existsSync(dir)) return [];
+  return fs.readdirSync(dir)
+    .filter(f => f.endsWith('.ui.yaml'))
+    .sort()
+    .map(f => ({ file: f, ir: YAML.parse(fs.readFileSync(path.join(dir, f), 'utf8')) }));
+}
+
+function loadComponents() {
+  const dir = path.join(ROOT, 'components');
   if (!fs.existsSync(dir)) return [];
   return fs.readdirSync(dir)
     .filter(f => f.endsWith('.ui.yaml'))
@@ -77,6 +86,7 @@ function themeProblems(tokens) {
 }
 
 function nativeActionProblems(ir) {
+  if (!ir.screen) return [];
   const problems = [];
   const platforms = [
     { label: 'iOS', file: path.join(ROOT, 'native/ios', `${ir.screen}ActionsImpl.swift`), pattern: action => new RegExp(`\\bfunc\\s+${action}\\s*\\(`) },
@@ -107,12 +117,14 @@ function actionNavigationProblems(ir, screenNames) {
   return problems;
 }
 
-function semanticCheck(ir, tokens, screenNames) {
+function semanticCheck(ir, tokens, screenNames, componentNames, componentsByName) {
   const errors = [];
   const stateNames = new Map((ir.state ?? []).map(s => [s.name, s]));
+  const propNames = new Map((ir.props ?? []).map(p => [p.name, p]));
   const actionNames = new Set((ir.actions ?? []).map(a => a.name));
 
   errors.push(...duplicateNames(ir.state, 'state'));
+  errors.push(...duplicateNames(ir.props, 'prop'));
   errors.push(...duplicateNames(ir.actions, 'action'));
   errors.push(...actionNavigationProblems(ir, screenNames));
 
@@ -129,29 +141,81 @@ function semanticCheck(ir, tokens, screenNames) {
 
   function checkCondition(node) {
     if (!node.visibleWhen) return;
-    const conditionState = stateNames.get(node.visibleWhen.state);
-    if (!conditionState) {
-      errors.push(`${node.type} visibleWhen references undeclared state "${node.visibleWhen.state}"`);
-    } else if (conditionState.type === 'list') {
-      errors.push(`${node.type} visibleWhen state "${node.visibleWhen.state}" must reference scalar state`);
+    const conditionValue = stateNames.get(node.visibleWhen.state) ?? propNames.get(node.visibleWhen.state);
+    if (!conditionValue) {
+      errors.push(`${node.type} visibleWhen references undeclared state or prop "${node.visibleWhen.state}"`);
+    } else if (conditionValue.type === 'list' || conditionValue.type === 'action') {
+      errors.push(`${node.type} visibleWhen "${node.visibleWhen.state}" must reference scalar state or prop`);
     }
+  }
+
+  function listFieldProblem(binding, listContext, label) {
+    if (!binding.startsWith('item.')) return false;
+    const field = binding.slice('item.'.length);
+      if (!listContext) {
+      errors.push(`${label} "${binding}" can only be used inside list itemTemplate`);
+      return true;
+      }
+      const fields = new Set((listContext.item?.fields ?? []).map(f => f.name));
+    if (!fields.has(field)) errors.push(`${label} "${binding}" references unknown list item field`);
+    return true;
   }
 
   function checkTextBinding(node, listContext) {
     if (node.type !== 'text' || !node.bind) return;
-    if (node.bind.startsWith('item.')) {
-      const field = node.bind.slice('item.'.length);
-      if (!listContext) {
-        errors.push(`text bind "${node.bind}" can only be used inside list itemTemplate`);
-        return;
-      }
-      const fields = new Set((listContext.item?.fields ?? []).map(f => f.name));
-      if (!fields.has(field)) errors.push(`text bind "${node.bind}" references unknown list item field`);
+    if (listFieldProblem(node.bind, listContext, 'text bind')) return;
+    const value = stateNames.get(node.bind) ?? propNames.get(node.bind);
+    if (!value) errors.push(`text binds to undeclared state or prop "${node.bind}"`);
+    else if (value.type === 'list' || value.type === 'action') errors.push(`text bind "${node.bind}" must reference scalar state or prop`);
+  }
+
+  function checkActionReference(node) {
+    if (node.type !== 'button') return;
+    if (actionNames.has(node.action)) return;
+    const prop = propNames.get(node.action);
+    if (!prop) {
+      errors.push(`button references undeclared action or action prop "${node.action}"`);
+    } else if (prop.type !== 'action') {
+      errors.push(`button action "${node.action}" must reference action prop`);
+    }
+  }
+
+  function checkComponentCall(node, listContext) {
+    if (node.type !== 'component') return;
+    const component = componentsByName.get(node.name);
+    if (!component) {
+      errors.push(`component node references unknown component "${node.name}"`);
       return;
     }
-    const state = stateNames.get(node.bind);
-    if (!state) errors.push(`text binds to undeclared state "${node.bind}"`);
-    else if (state.type === 'list') errors.push(`text bind "${node.bind}" must reference scalar state`);
+
+    const expectedProps = new Map((component.props ?? []).map(prop => [prop.name, prop]));
+    const actualProps = node.props ?? {};
+    for (const prop of component.props ?? []) {
+      if (!Object.hasOwn(actualProps, prop.name)) errors.push(`component "${node.name}" is missing prop "${prop.name}"`);
+    }
+    for (const propName of Object.keys(actualProps)) {
+      const expected = expectedProps.get(propName);
+      if (!expected) {
+        errors.push(`component "${node.name}" received unknown prop "${propName}"`);
+        continue;
+      }
+      const value = actualProps[propName];
+      if (expected.type === 'action') {
+        if (typeof value !== 'string') {
+          errors.push(`component "${node.name}" action prop "${propName}" must be an action name`);
+        } else if (!actionNames.has(value) && propNames.get(value)?.type !== 'action') {
+          errors.push(`component "${node.name}" action prop "${propName}" references undeclared action or action prop "${value}"`);
+        }
+        continue;
+      }
+      if (typeof value === 'string' && listFieldProblem(value, listContext, `component "${node.name}" prop "${propName}"`)) continue;
+      if (typeof value === 'string' && /^[a-z][A-Za-z0-9]*$/.test(value)) {
+        const referenced = stateNames.get(value) ?? propNames.get(value);
+        if (referenced && referenced.type !== expected.type) {
+          errors.push(`component "${node.name}" prop "${propName}" expects ${expected.type} but "${value}" is ${referenced.type}`);
+        }
+      }
+    }
   }
 
   function walk(node, listContext = null) {
@@ -167,14 +231,14 @@ function semanticCheck(ir, tokens, screenNames) {
     if (node.type === 'text' && node.role && !hasToken(tokens, 'typography', node.role))
       errors.push(`text references missing typography token "${node.role}"`);
     checkTextBinding(node, listContext);
+    checkComponentCall(node, listContext);
 
     if (node.type === 'textField' && !stateNames.has(node.bind)) {
       errors.push(`textField binds to undeclared state "${node.bind}"`);
     } else if (node.type === 'textField' && stateNames.get(node.bind)?.type !== 'string') {
       errors.push(`textField bind "${node.bind}" must reference string state`);
     }
-    if (node.type === 'button' && !actionNames.has(node.action))
-      errors.push(`button references undeclared action "${node.action}"`);
+    checkActionReference(node);
     let nextListContext = listContext;
     if (node.type === 'list' && node.bind && !stateNames.has(node.bind)) {
       errors.push(`list binds to undeclared state "${node.bind}"`);
@@ -193,6 +257,7 @@ function semanticCheck(ir, tokens, screenNames) {
 
 function validate() {
   const screens = loadScreens();
+  const components = loadComponents();
   const tokens = loadTokens();
   if (!screens.length) {
     console.error('no .ui.yaml files found in screens/');
@@ -206,7 +271,10 @@ function validate() {
     for (const p of tokenProblems) console.error(`    ${p}`);
   }
   const screenFilesByName = new Map();
+  const componentFilesByName = new Map();
   const allScreenNames = new Set(screens.map(({ ir }) => ir.screen).filter(Boolean));
+  const allComponentNames = new Set(components.map(({ ir }) => ir.component).filter(Boolean));
+  const componentsByName = new Map(components.map(({ ir }) => [ir.component, ir]));
   const entryScreens = screens.filter(({ ir }) => ir.entry);
   if (entryScreens.length > 1) {
     failed = true;
@@ -224,7 +292,8 @@ function validate() {
       } else {
         screenFilesByName.set(ir.screen, file);
       }
-      problems.push(...semanticCheck(ir, tokens, allScreenNames));
+      if ((ir.props ?? []).length) problems.push('screen cannot declare props; use state instead');
+      problems.push(...semanticCheck(ir, tokens, allScreenNames, allComponentNames, componentsByName));
     }
     if (problems.length) {
       failed = true;
@@ -234,12 +303,36 @@ function validate() {
       console.log(`✓ ${file}`);
     }
   }
+  for (const { file, ir } of components) {
+    const problems = [];
+    if (!validateSchema(ir)) {
+      for (const e of validateSchema.errors)
+        problems.push(`${e.instancePath || '/'} ${e.message}`);
+    } else {
+      if (componentFilesByName.has(ir.component)) {
+        problems.push(`duplicate component name "${ir.component}" also used by ${componentFilesByName.get(ir.component)}`);
+      } else {
+        componentFilesByName.set(ir.component, file);
+      }
+      if (ir.entry) problems.push('component cannot declare entry');
+      if ((ir.state ?? []).length) problems.push('component cannot declare state; use props instead');
+      if ((ir.actions ?? []).length) problems.push('component cannot declare actions; use action props instead');
+      problems.push(...semanticCheck(ir, tokens, allScreenNames, allComponentNames, componentsByName));
+    }
+    if (problems.length) {
+      failed = true;
+      console.error(`✗ components/${file}`);
+      for (const p of problems) console.error(`    ${p}`);
+    } else {
+      console.log(`✓ components/${file}`);
+    }
+  }
   if (failed) process.exit(1);
-  return screens;
+  return { screens, components };
 }
 
 function build() {
-  const screens = validate();
+  const { screens, components } = validate();
   const tokens = loadTokens();
   const nativeCreated = ensureNativeActionStubs(ROOT, screens);
 
@@ -255,9 +348,16 @@ function build() {
   console.log('→ generated/ios/App.swift');
   console.log('→ generated/android/Theme.kt');
 
+  for (const { ir } of components) {
+    fs.writeFileSync(path.join(iosDir, `${ir.component}View.swift`), emitComponentSwift(ir, components.map(({ ir }) => ir)));
+    fs.writeFileSync(path.join(androidDir, `${ir.component}.kt`), emitComponentKotlin(ir, components.map(({ ir }) => ir)));
+    console.log(`→ generated/ios/${ir.component}View.swift`);
+    console.log(`→ generated/android/${ir.component}.kt`);
+  }
+
   for (const { ir } of screens) {
-    fs.writeFileSync(path.join(iosDir, `${ir.screen}View.swift`), emitScreenSwift(ir));
-    fs.writeFileSync(path.join(androidDir, `${ir.screen}Screen.kt`), emitScreenKotlin(ir));
+    fs.writeFileSync(path.join(iosDir, `${ir.screen}View.swift`), emitScreenSwift(ir, components.map(({ ir }) => ir)));
+    fs.writeFileSync(path.join(androidDir, `${ir.screen}Screen.kt`), emitScreenKotlin(ir, components.map(({ ir }) => ir)));
     console.log(`→ generated/ios/${ir.screen}View.swift`);
     console.log(`→ generated/android/${ir.screen}Screen.kt`);
   }
@@ -309,7 +409,7 @@ if (cmd === 'validate') validate();
 else if (cmd === 'build') build();
 else if (cmd === 'author:loop') runAuthorLoop(ROOT);
 else if (cmd === 'figma:import') importFigma(ROOT, process.argv[3], process.argv[4]);
-else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate());
+else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens);
 else if (cmd === 'plugins:validate') validatePlugins();
 else if (cmd === 'doctor:ios') doctorIos() || process.exit(1);
 else if (cmd === 'doctor:android') doctorAndroid() || process.exit(1);

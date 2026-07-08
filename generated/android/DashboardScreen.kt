@@ -27,6 +27,7 @@ data class ProjectsItem(
 )
 
 interface DashboardActions {
+    fun selectProject()
     fun goBack()
 }
 
@@ -66,22 +67,11 @@ fun DashboardScreen(actions: DashboardActions, navController: NavHostController)
             }
             LazyColumn(verticalArrangement = Arrangement.spacedBy(Theme.Spacing.normal)) {
                 items(projects) { item ->
-                    Column(
-                        modifier = Modifier.padding(Theme.Spacing.normal),
-                        verticalArrangement = Arrangement.spacedBy(Theme.Spacing.tight),
-                        horizontalAlignment = Alignment.Start
-                    ) {
-                        Text(
-                            text = item.name,
-                            style = Theme.Typography.heading,
-                            color = Theme.Colors.textPrimary
-                        )
-                        Text(
-                            text = item.platform,
-                            style = Theme.Typography.caption,
-                            color = Theme.Colors.textSecondary
-                        )
-                    }
+                    ProjectCard(
+                        title = item.name,
+                        subtitle = item.platform,
+                        onSelect = { actions.selectProject() }
+                    )
                 }
             }
             OutlinedButton(

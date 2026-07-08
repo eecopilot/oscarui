@@ -58,6 +58,7 @@ npm run snapshots:diff
 改 UI 时，优先编辑：
 
 - `screens/*.ui.yaml`: 页面结构和 UI 意图
+- `components/*.ui.yaml`: 可复用组件 UI 意图
 - `theme/tokens.yaml`: spacing、radius、color、typography、size 等设计 token
 - `schema/ui-ir.schema.json`: 允许使用的 IR 能力
 - `compiler/*.mjs`: IR 到 SwiftUI / Compose 的确定性模板
@@ -197,6 +198,7 @@ action: login
 ```text
 oscarui/
 ├── screens/                 # UI IR，页面源码
+├── components/              # 可复用组件 IR
 ├── schema/                  # IR schema，限制可用 UI 能力
 ├── theme/                   # 设计 token
 ├── compiler/                # 确定性编译器和 CLI

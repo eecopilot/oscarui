@@ -47,24 +47,20 @@ body:
       - type: list
         bind: projects
         itemTemplate:
-          - type: column
-            spacing: tight
-            padding: normal
-            align: start
-            children:
-              - type: text
-                role: heading
-                bind: item.name
-              - type: text
-                role: caption
-                bind: item.platform
-                color: textSecondary
+          - type: component
+            name: ProjectCard
+            props:
+              title: item.name
+              subtitle: item.platform
+              onSelect: selectProject
       - type: button
         role: secondary
         label: Back
         action: goBack
 
 actions:
+  - name: selectProject
+    steps: [select]
   - name: goBack
     steps: [navigate]
     navigation:

@@ -2,6 +2,7 @@
 import SwiftUI
 
 protocol DashboardActions {
+    func selectProject()
     func goBack()
 }
 
@@ -35,15 +36,11 @@ struct DashboardView: View {
             }
             VStack(alignment: .leading, spacing: Theme.Spacing.normal) {
                 ForEach(projects) { item in
-                    VStack(alignment: .leading, spacing: Theme.Spacing.tight) {
-                        Text(item.name)
-                            .font(Theme.Typography.heading)
-                            .foregroundStyle(Theme.Colors.textPrimary)
-                        Text(item.platform)
-                            .font(Theme.Typography.caption)
-                            .foregroundStyle(Theme.Colors.textSecondary)
-                    }
-                    .padding(Theme.Spacing.normal)
+                    ProjectCardView(
+                        title: item.name,
+                        subtitle: item.platform,
+                        onSelect: { actions.selectProject() }
+                    )
                 }
             }
             Button {

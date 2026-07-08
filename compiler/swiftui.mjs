@@ -41,6 +41,7 @@ export function emitThemeSwift(tokens) {
 }
 
 const SWIFT_TYPE = { string: 'String', bool: 'Bool', int: 'Int', double: 'Double' };
+const SWIFT_PROP_TYPE = { ...SWIFT_TYPE, action: '() -> Void' };
 const SWIFT_DEFAULT = { string: '""', bool: 'false', int: '0', double: '0.0' };
 const KEYBOARD = { email: '.emailAddress', number: '.numberPad', phone: '.phonePad', default: '.default' };
 
@@ -95,6 +96,14 @@ function conditionExpression(condition) {
   if (Object.hasOwn(condition, 'equals')) return `${left} == ${swiftLiteral(condition.equals, typeof condition.equals === 'boolean' ? 'bool' : typeof condition.equals === 'number' ? 'double' : 'string')}`;
   if (Object.hasOwn(condition, 'notEquals')) return `${left} != ${swiftLiteral(condition.notEquals, typeof condition.notEquals === 'boolean' ? 'bool' : typeof condition.notEquals === 'number' ? 'double' : 'string')}`;
   return left;
+}
+
+function propLiteral(value, type, ctx) {
+  if (typeof value === 'string') {
+    if (/^item\.[a-z][A-Za-z0-9]*$/.test(value)) return `item.${value.slice('item.'.length)}`;
+    if (/^[a-z][A-Za-z0-9]*$/.test(value) && ctx.bindings?.has(value)) return value;
+  }
+  return swiftLiteral(value, type);
 }
 
 function applyVisibility(lines, node) {
@@ -154,7 +163,7 @@ function emitRawNode(node, ctx) {
       const action = ctx.actions.get(node.action);
       const lines = [
         'Button {',
-        ...indent(actionLines(action, ctx), 1),
+        ...indent(ctx.actionProps?.has(node.action) ? [`${node.action}()`] : actionLines(action, ctx), 1),
         '} label: {',
         `    Text("${esc(node.label)}")`,
         '        .font(Theme.Typography.body)',
@@ -209,6 +218,21 @@ function emitRawNode(node, ctx) {
       lines.push('    }', '}');
       return lines;
     }
+    case 'component': {
+      const lines = [`${node.name}View(`];
+      const args = Object.entries(node.props ?? {}).map(([name, value]) => {
+        const prop = ctx.components.get(node.name)?.props?.find(p => p.name === name);
+        if (prop?.type === 'action') {
+          if (ctx.actionProps?.has(value)) return `${name}: ${value}`;
+          const action = ctx.actions.get(value);
+          return `${name}: { ${actionLines(action, ctx).join('; ')} }`;
+        }
+        return `${name}: ${propLiteral(value, prop?.type ?? 'string', ctx)}`;
+      });
+      lines.push(...indent(args.map((arg, index) => `${arg}${index < args.length - 1 ? ',' : ''}`), 1));
+      lines.push(')');
+      return lines;
+    }
     case 'spacer':
       return ['Spacer()'];
     default:
@@ -251,7 +275,7 @@ function emitStateDefault(state) {
   return `[\n${indent(rows.map((row, index) => `${row}${index < rows.length - 1 ? ',' : ''}`), 2).join('\n')}\n    ]`;
 }
 
-export function emitScreenSwift(ir) {
+export function emitScreenSwift(ir, components = []) {
   const name = ir.screen;
   const lines = [`// ${HEADER}`, 'import SwiftUI', ''];
 
@@ -275,8 +299,10 @@ export function emitScreenSwift(ir) {
 
   const layout = screenLayout(ir);
   const actionsByName = new Map(actions.map(action => [action.name, action]));
+  const componentsByName = new Map(components.map(component => [component.component, component]));
+  const bindings = new Set((ir.state ?? []).map(state => state.name));
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName }));
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName, components: componentsByName, bindings }));
   const wrapped = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
   lines.push(...indent(wrapped, 2));
   if (ir.body.length > 1) {
@@ -288,6 +314,39 @@ export function emitScreenSwift(ir) {
   lines.push('        .background(Theme.Colors.background)');
   if (!layout.safeArea) lines.push('        .ignoresSafeArea()');
 
+  lines.push('    }');
+  lines.push('}');
+  lines.push('');
+  return lines.join('\n');
+}
+
+export function emitComponentSwift(ir, components = []) {
+  const name = ir.component;
+  const lines = [`// ${HEADER}`, 'import SwiftUI', ''];
+
+  lines.push(`struct ${name}View: View {`);
+  for (const prop of ir.props ?? []) {
+    lines.push(`    let ${prop.name}: ${SWIFT_PROP_TYPE[prop.type]}`);
+  }
+  lines.push('');
+  lines.push('    var body: some View {');
+
+  const propActions = new Set((ir.props ?? []).filter(prop => prop.type === 'action').map(prop => prop.name));
+  const componentsByName = new Map(components.map(component => [component.component, component]));
+  const bindings = new Set((ir.props ?? []).map(prop => prop.name));
+  const body = [];
+  for (const node of ir.body) {
+    body.push(...emitNode(node, {
+      isRootContent: false,
+      layout: screenLayout({}),
+      actions: new Map(),
+      actionProps: propActions,
+      components: componentsByName,
+      bindings,
+    }));
+  }
+  const wrapped = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
+  lines.push(...indent(wrapped, 2));
   lines.push('    }');
   lines.push('}');
   lines.push('');

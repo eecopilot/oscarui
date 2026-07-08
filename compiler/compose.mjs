@@ -42,6 +42,7 @@ export function emitThemeKotlin(tokens) {
 }
 
 const KT_TYPE = { string: 'String', bool: 'Boolean', int: 'Int', double: 'Double' };
+const KT_PROP_TYPE = { ...KT_TYPE, action: '() -> Unit' };
 const KT_DEFAULT = { string: '""', bool: 'false', int: '0', double: '0.0' };
 const KEYBOARD = { email: 'KeyboardType.Email', number: 'KeyboardType.Number', phone: 'KeyboardType.Phone' };
 
@@ -77,6 +78,14 @@ function kotlinLiteral(value, type) {
   if (type === 'bool') return value === true ? 'true' : 'false';
   if (type === 'double') return value === undefined ? '0.0' : String(value);
   return value === undefined ? '0' : String(value);
+}
+
+function propLiteral(value, type, ctx) {
+  if (typeof value === 'string') {
+    if (/^item\.[a-z][A-Za-z0-9]*$/.test(value)) return `item.${value.slice('item.'.length)}`;
+    if (/^[a-z][A-Za-z0-9]*$/.test(value) && ctx.bindings?.has(value)) return value;
+  }
+  return kotlinLiteral(value, type);
 }
 
 function listItemType(state) {
@@ -156,7 +165,7 @@ function emitRawNode(node, ctx) {
     case 'button': {
       const role = node.role ?? 'primary';
       const action = ctx.actions.get(node.action);
-      const call = actionLines(action).join('; ');
+      const call = ctx.actionProps?.has(node.action) ? `${node.action}()` : actionLines(action).join('; ');
       const commonArgs = [
         `onClick = { ${call} }`,
         'modifier = Modifier.height(Theme.Size.controlHeight).widthIn(min = Theme.Size.buttonMinWidth)',
@@ -204,6 +213,21 @@ function emitRawNode(node, ctx) {
         ...label,
         '}',
       ];
+    }
+    case 'component': {
+      const lines = [`${node.name}(`];
+      const args = Object.entries(node.props ?? {}).map(([name, value]) => {
+        const prop = ctx.components.get(node.name)?.props?.find(p => p.name === name);
+        if (prop?.type === 'action') {
+          if (ctx.actionProps?.has(value)) return `${name} = ${value}`;
+          const action = ctx.actions.get(value);
+          return `${name} = { ${actionLines(action).join('; ')} }`;
+        }
+        return `${name} = ${propLiteral(value, prop?.type ?? 'string', ctx)}`;
+      });
+      lines.push(...indent(args.map((arg, index) => `${arg}${index < args.length - 1 ? ',' : ''}`), 1));
+      lines.push(')');
+      return lines;
     }
     case 'textField': {
       const args = [
@@ -280,9 +304,8 @@ function emitStateDefault(state) {
   return `listOf(\n${indent(rows.map((row, index) => `${row}${index < rows.length - 1 ? ',' : ''}`), 2).join('\n')}\n    )`;
 }
 
-export function emitScreenKotlin(ir) {
-  const name = ir.screen;
-  const lines = [
+function componentImports() {
+  return [
     `// ${HEADER}`,
     'package app.generated',
     '',
@@ -306,6 +329,11 @@ export function emitScreenKotlin(ir) {
     'import coil.compose.AsyncImage',
     '',
   ];
+}
+
+export function emitScreenKotlin(ir, components = []) {
+  const name = ir.screen;
+  const lines = componentImports();
 
   lines.push(...emitListStateTypes(ir));
 
@@ -328,11 +356,13 @@ export function emitScreenKotlin(ir) {
 
   const layout = screenLayout(ir);
   const actionsByName = new Map(actions.map(action => [action.name, action]));
+  const componentsByName = new Map(components.map(component => [component.component, component]));
+  const bindings = new Set((ir.state ?? []).map(state => state.name));
   const rootModifiers = ['Modifier', '.fillMaxSize()', '.background(Theme.Colors.background)'];
   if (layout.safeArea) rootModifiers.push('.safeDrawingPadding()');
 
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName }));
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName, components: componentsByName, bindings }));
   const wrapped = ir.body.length > 1
     ? ['Column(modifier = Modifier.fillMaxWidth()) {', ...indent(body, 1), '}']
     : body;
@@ -342,6 +372,35 @@ export function emitScreenKotlin(ir) {
   lines.push('    ) {');
   lines.push(...indent(wrapped, 2));
   lines.push('    }');
+  lines.push('}');
+  lines.push('');
+  return lines.join('\n');
+}
+
+export function emitComponentKotlin(ir, components = []) {
+  const lines = componentImports();
+  const componentsByName = new Map(components.map(component => [component.component, component]));
+  const propActions = new Set((ir.props ?? []).filter(prop => prop.type === 'action').map(prop => prop.name));
+  const bindings = new Set((ir.props ?? []).map(prop => prop.name));
+
+  lines.push('@Composable');
+  lines.push(`fun ${ir.component}(`);
+  lines.push(...indent((ir.props ?? []).map((prop, index, all) => `${prop.name}: ${KT_PROP_TYPE[prop.type]}${index < all.length - 1 ? ',' : ''}`), 1));
+  lines.push(') {');
+
+  const body = [];
+  for (const node of ir.body) {
+    body.push(...emitNode(node, {
+      isRootContent: false,
+      layout: screenLayout({}),
+      actions: new Map(),
+      actionProps: propActions,
+      components: componentsByName,
+      bindings,
+    }));
+  }
+  const wrapped = ir.body.length > 1 ? ['Column {', ...indent(body, 1), '}'] : body;
+  lines.push(...indent(wrapped, 1));
   lines.push('}');
   lines.push('');
   return lines.join('\n');
