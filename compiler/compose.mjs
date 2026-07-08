@@ -1,14 +1,15 @@
 import { indent, esc, HEADER } from './util.mjs';
 import { pascal } from './util.mjs';
 export { emitThemeKotlin } from './renderer/compose-theme.mjs';
-import { KT_PROP_TYPE, KT_TYPE, emitListStateTypes, emitStateDefault, kotlinLiteral } from './renderer/compose-state.mjs';
+import { actionInvocation, applyVisibility } from './renderer/compose-expressions.mjs';
+import { emitComponentNode } from './renderer/compose-components.mjs';
+import { KT_PROP_TYPE, KT_TYPE, emitListStateTypes, emitStateDefault } from './renderer/compose-state.mjs';
 import {
   actionPropNames,
   actionsByName,
   componentsByName,
   emitsGroupedRow,
   isItemBinding,
-  isLocalIdentifier,
   itemBindingField,
   propBindingNames,
   screenLayout,
@@ -36,14 +37,6 @@ function addRootContentSize(modifiers, layout) {
   modifiers.push(`.widthIn(max = Theme.Size.content${pascal(layout.contentWidth)})`, '.fillMaxWidth()');
 }
 
-function propLiteral(value, type, ctx) {
-  if (typeof value === 'string') {
-    if (isItemBinding(value)) return `item.${itemBindingField(value)}`;
-    if (isLocalIdentifier(value) && ctx.bindings?.has(value)) return value;
-  }
-  return kotlinLiteral(value, type);
-}
-
 function textExpression(value, bind, ctx) {
   if (bind) {
     if (isItemBinding(bind)) return `item.${itemBindingField(bind)}`;
@@ -51,35 +44,6 @@ function textExpression(value, bind, ctx) {
     return `${bind}.toString()`;
   }
   return `"${esc(value ?? '')}"`;
-}
-
-function conditionExpression(condition) {
-  const left = condition.state;
-  const valueType = typeof condition.equals === 'boolean' || typeof condition.notEquals === 'boolean'
-    ? 'bool'
-    : typeof condition.equals === 'number' || typeof condition.notEquals === 'number'
-      ? 'double'
-      : 'string';
-  if (Object.hasOwn(condition, 'equals')) return `${left} == ${kotlinLiteral(condition.equals, valueType)}`;
-  if (Object.hasOwn(condition, 'notEquals')) return `${left} != ${kotlinLiteral(condition.notEquals, valueType)}`;
-  return left;
-}
-
-function applyVisibility(lines, node) {
-  if (!node.visibleWhen) return lines;
-  return [`if (${conditionExpression(node.visibleWhen)}) {`, ...indent(lines, 1), '}'];
-}
-
-function actionLines(action) {
-  const lines = [`actions.${action.name}()`];
-  if (action.navigation?.type === 'push') lines.push(`navController.navigate("${action.navigation.screen}")`);
-  if (action.navigation?.type === 'pop') lines.push('navController.popBackStack()');
-  return lines;
-}
-
-function actionInvocation(actionName, ctx) {
-  if (ctx.actionProps?.has(actionName)) return `${actionName}()`;
-  return actionLines(ctx.actions.get(actionName)).join('; ');
 }
 
 function emitRawNode(node, ctx) {
@@ -227,19 +191,7 @@ function emitRawNode(node, ctx) {
       return lines;
     }
     case 'component': {
-      const lines = [`${node.name}(`];
-      const args = Object.entries(node.props ?? {}).map(([name, value]) => {
-        const prop = ctx.components.get(node.name)?.props?.find(p => p.name === name);
-        if (prop?.type === 'action') {
-          if (ctx.actionProps?.has(value)) return `${name} = ${value}`;
-          const action = ctx.actions.get(value);
-          return `${name} = { ${actionLines(action).join('; ')} }`;
-        }
-        return `${name} = ${propLiteral(value, prop?.type ?? 'string', ctx)}`;
-      });
-      lines.push(...indent(args.map((arg, index) => `${arg}${index < args.length - 1 ? ',' : ''}`), 1));
-      lines.push(')');
-      return lines;
+      return emitComponentNode(node, ctx);
     }
     case 'textField': {
       const args = [

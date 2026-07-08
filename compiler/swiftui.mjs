@@ -1,13 +1,14 @@
-import { camel, indent, esc, pascal, HEADER } from './util.mjs';
+import { indent, esc, pascal, HEADER } from './util.mjs';
 export { emitThemeSwift } from './renderer/swift-theme.mjs';
-import { SWIFT_PROP_TYPE, SWIFT_TYPE, emitListStateTypes, emitStateDefault, swiftLiteral } from './renderer/swift-state.mjs';
+import { actionInvocationLines, applyVisibility } from './renderer/swift-expressions.mjs';
+import { emitComponentNode } from './renderer/swift-components.mjs';
+import { SWIFT_PROP_TYPE, SWIFT_TYPE, emitListStateTypes, emitStateDefault } from './renderer/swift-state.mjs';
 import {
   actionPropNames,
   actionsByName,
   componentsByName,
   emitsGroupedRow,
   isItemBinding,
-  isLocalIdentifier,
   itemBindingField,
   listItemType,
   propBindingNames,
@@ -51,21 +52,6 @@ function contentWidthModifier(layout, alignment = '.center') {
   return `.frame(maxWidth: Theme.Size.content${pascal(layout.contentWidth)}, alignment: ${alignment})`;
 }
 
-function conditionExpression(condition) {
-  const left = condition.state;
-  if (Object.hasOwn(condition, 'equals')) return `${left} == ${swiftLiteral(condition.equals, typeof condition.equals === 'boolean' ? 'bool' : typeof condition.equals === 'number' ? 'double' : 'string')}`;
-  if (Object.hasOwn(condition, 'notEquals')) return `${left} != ${swiftLiteral(condition.notEquals, typeof condition.notEquals === 'boolean' ? 'bool' : typeof condition.notEquals === 'number' ? 'double' : 'string')}`;
-  return left;
-}
-
-function propLiteral(value, type, ctx) {
-  if (typeof value === 'string') {
-    if (isItemBinding(value)) return `item.${itemBindingField(value)}`;
-    if (isLocalIdentifier(value) && ctx.bindings?.has(value)) return value;
-  }
-  return swiftLiteral(value, type);
-}
-
 function textExpression(value, bind, ctx) {
   if (bind) {
     if (isItemBinding(bind)) return `item.${itemBindingField(bind)}`;
@@ -73,23 +59,6 @@ function textExpression(value, bind, ctx) {
     return `String(${bind})`;
   }
   return `"${esc(value ?? '')}"`;
-}
-
-function applyVisibility(lines, node) {
-  if (!node.visibleWhen) return lines;
-  return [`if ${conditionExpression(node.visibleWhen)} {`, ...indent(lines, 1), '}'];
-}
-
-function actionLines(action, ctx) {
-  const lines = [`actions.${action.name}()`];
-  if (action.navigation?.type === 'push') lines.push(`router.push(.${camel(action.navigation.screen)})`);
-  if (action.navigation?.type === 'pop') lines.push('router.pop()');
-  return lines;
-}
-
-function actionInvocationLines(actionName, ctx) {
-  if (ctx.actionProps?.has(actionName)) return [`${actionName}()`];
-  return actionLines(ctx.actions.get(actionName), ctx);
 }
 
 function emitRawNode(node, ctx) {
@@ -238,19 +207,7 @@ function emitRawNode(node, ctx) {
       return lines;
     }
     case 'component': {
-      const lines = [`${node.name}View(`];
-      const args = Object.entries(node.props ?? {}).map(([name, value]) => {
-        const prop = ctx.components.get(node.name)?.props?.find(p => p.name === name);
-        if (prop?.type === 'action') {
-          if (ctx.actionProps?.has(value)) return `${name}: ${value}`;
-          const action = ctx.actions.get(value);
-          return `${name}: { ${actionLines(action, ctx).join('; ')} }`;
-        }
-        return `${name}: ${propLiteral(value, prop?.type ?? 'string', ctx)}`;
-      });
-      lines.push(...indent(args.map((arg, index) => `${arg}${index < args.length - 1 ? ',' : ''}`), 1));
-      lines.push(')');
-      return lines;
+      return emitComponentNode(node, ctx);
     }
     case 'spacer':
       return ['Spacer()'];
