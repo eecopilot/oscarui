@@ -1,5 +1,18 @@
 import { indent, esc, HEADER } from './util.mjs';
 import { pascal } from './util.mjs';
+import {
+  actionPropNames,
+  actionsByName,
+  componentsByName,
+  emitsGroupedRow,
+  isItemBinding,
+  isLocalIdentifier,
+  itemBindingField,
+  listItemType,
+  propBindingNames,
+  screenLayout,
+  stateBindingNames,
+} from './renderer/ir-utils.mjs';
 
 const WEIGHT = { bold: 'FontWeight.Bold', semibold: 'FontWeight.SemiBold', regular: 'FontWeight.Normal' };
 
@@ -53,14 +66,6 @@ function alignRow(a) {
   return { start: 'Alignment.Top', center: 'Alignment.CenterVertically', end: 'Alignment.Bottom' }[a ?? 'center'];
 }
 
-function screenLayout(ir) {
-  return {
-    safeArea: ir.layout?.safeArea ?? true,
-    contentPosition: ir.layout?.contentPosition ?? 'top',
-    contentWidth: ir.layout?.contentWidth ?? 'fill',
-  };
-}
-
 function screenAlignment(layout) {
   return layout.contentPosition === 'center' ? 'Alignment.Center' : 'Alignment.TopCenter';
 }
@@ -82,23 +87,19 @@ function kotlinLiteral(value, type) {
 
 function propLiteral(value, type, ctx) {
   if (typeof value === 'string') {
-    if (/^item\.[a-z][A-Za-z0-9]*$/.test(value)) return `item.${value.slice('item.'.length)}`;
-    if (/^[a-z][A-Za-z0-9]*$/.test(value) && ctx.bindings?.has(value)) return value;
+    if (isItemBinding(value)) return `item.${itemBindingField(value)}`;
+    if (isLocalIdentifier(value) && ctx.bindings?.has(value)) return value;
   }
   return kotlinLiteral(value, type);
 }
 
 function textExpression(value, bind, ctx) {
   if (bind) {
-    if (bind.startsWith('item.')) return `item.${bind.slice('item.'.length)}`;
+    if (isItemBinding(bind)) return `item.${itemBindingField(bind)}`;
     if (ctx.bindings?.has(bind)) return bind;
     return `${bind}.toString()`;
   }
   return `"${esc(value ?? '')}"`;
-}
-
-function listItemType(state) {
-  return `${pascal(state.name)}Item`;
 }
 
 function conditionExpression(condition) {
@@ -130,13 +131,6 @@ function actionInvocation(actionName, ctx) {
   return actionLines(ctx.actions.get(actionName)).join('; ');
 }
 
-function emitsGroupedRow(node, ctx) {
-  if (node.type === 'listRow') return true;
-  if (node.type !== 'component') return false;
-  const component = ctx.components.get(node.name);
-  return component?.body?.length === 1 && component.body[0]?.type === 'listRow';
-}
-
 function emitRawNode(node, ctx) {
   switch (node.type) {
     case 'column':
@@ -165,7 +159,7 @@ function emitRawNode(node, ctx) {
     case 'text':
       return [
         'Text(',
-        `    text = ${node.bind ? (node.bind.startsWith('item.') ? `item.${node.bind.slice('item.'.length)}` : `${node.bind}.toString()`) : `"${esc(node.value)}"`},`,
+        `    text = ${node.bind ? (isItemBinding(node.bind) ? `item.${itemBindingField(node.bind)}` : `${node.bind}.toString()`) : `"${esc(node.value)}"`},`,
         `    style = Theme.Typography.${node.role ?? 'body'},`,
         `    color = Theme.Colors.${node.color ?? 'textPrimary'}`,
         ')',
@@ -318,7 +312,7 @@ function emitRawNode(node, ctx) {
       ];
     }
     case 'list': {
-      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx);
+      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx.components);
       const lines = [
         'LazyColumn(',
         ...indent([
@@ -440,14 +434,14 @@ export function emitScreenKotlin(ir, components = []) {
   if ((ir.state ?? []).length) lines.push('');
 
   const layout = screenLayout(ir);
-  const actionsByName = new Map(actions.map(action => [action.name, action]));
-  const componentsByName = new Map(components.map(component => [component.component, component]));
-  const bindings = new Set((ir.state ?? []).map(state => state.name));
+  const actionsMap = actionsByName(actions);
+  const componentsMap = componentsByName(components);
+  const bindings = stateBindingNames(ir);
   const rootModifiers = ['Modifier', '.fillMaxSize()', '.background(Theme.Colors.background)'];
   if (layout.safeArea) rootModifiers.push('.safeDrawingPadding()');
 
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsByName, components: componentsByName, bindings }));
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: ir.body.length === 1, layout, actions: actionsMap, components: componentsMap, bindings }));
   const wrapped = ir.body.length > 1
     ? ['Column(modifier = Modifier.fillMaxWidth()) {', ...indent(body, 1), '}']
     : body;
@@ -464,9 +458,9 @@ export function emitScreenKotlin(ir, components = []) {
 
 export function emitComponentKotlin(ir, components = []) {
   const lines = componentImports();
-  const componentsByName = new Map(components.map(component => [component.component, component]));
-  const propActions = new Set((ir.props ?? []).filter(prop => prop.type === 'action').map(prop => prop.name));
-  const bindings = new Set((ir.props ?? []).map(prop => prop.name));
+  const componentsMap = componentsByName(components);
+  const propActions = actionPropNames(ir);
+  const bindings = propBindingNames(ir);
 
   lines.push('@Composable');
   lines.push(`fun ${ir.component}(`);
@@ -480,7 +474,7 @@ export function emitComponentKotlin(ir, components = []) {
       layout: screenLayout({}),
       actions: new Map(),
       actionProps: propActions,
-      components: componentsByName,
+      components: componentsMap,
       bindings,
     }));
   }

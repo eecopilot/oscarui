@@ -1,4 +1,17 @@
 import { camel, indent, esc, pascal, HEADER } from './util.mjs';
+import {
+  actionPropNames,
+  actionsByName,
+  componentsByName,
+  emitsGroupedRow,
+  isItemBinding,
+  isLocalIdentifier,
+  itemBindingField,
+  listItemType,
+  propBindingNames,
+  screenLayout,
+  stateBindingNames,
+} from './renderer/ir-utils.mjs';
 
 const WEIGHT = { bold: '.bold', semibold: '.semibold', regular: '.regular' };
 
@@ -62,14 +75,6 @@ function rootAlignment(node) {
   return '.top';
 }
 
-function screenLayout(ir) {
-  return {
-    safeArea: ir.layout?.safeArea ?? true,
-    contentPosition: ir.layout?.contentPosition ?? 'top',
-    contentWidth: ir.layout?.contentWidth ?? 'fill',
-  };
-}
-
 function screenAlignment(layout, fallback) {
   if (layout.contentPosition === 'center') return '.center';
   return fallback;
@@ -94,10 +99,6 @@ function swiftLiteral(value, type) {
   return value === undefined ? '0' : String(value);
 }
 
-function listItemType(state) {
-  return `${pascal(state.name)}Item`;
-}
-
 function conditionExpression(condition) {
   const left = condition.state;
   if (Object.hasOwn(condition, 'equals')) return `${left} == ${swiftLiteral(condition.equals, typeof condition.equals === 'boolean' ? 'bool' : typeof condition.equals === 'number' ? 'double' : 'string')}`;
@@ -107,15 +108,15 @@ function conditionExpression(condition) {
 
 function propLiteral(value, type, ctx) {
   if (typeof value === 'string') {
-    if (/^item\.[a-z][A-Za-z0-9]*$/.test(value)) return `item.${value.slice('item.'.length)}`;
-    if (/^[a-z][A-Za-z0-9]*$/.test(value) && ctx.bindings?.has(value)) return value;
+    if (isItemBinding(value)) return `item.${itemBindingField(value)}`;
+    if (isLocalIdentifier(value) && ctx.bindings?.has(value)) return value;
   }
   return swiftLiteral(value, type);
 }
 
 function textExpression(value, bind, ctx) {
   if (bind) {
-    if (bind.startsWith('item.')) return `item.${bind.slice('item.'.length)}`;
+    if (isItemBinding(bind)) return `item.${itemBindingField(bind)}`;
     if (ctx.bindings?.has(bind)) return bind;
     return `String(${bind})`;
   }
@@ -139,13 +140,6 @@ function actionInvocationLines(actionName, ctx) {
   return actionLines(ctx.actions.get(actionName), ctx);
 }
 
-function emitsGroupedRow(node, ctx) {
-  if (node.type === 'listRow') return true;
-  if (node.type !== 'component') return false;
-  const component = ctx.components.get(node.name);
-  return component?.body?.length === 1 && component.body[0]?.type === 'listRow';
-}
-
 function emitRawNode(node, ctx) {
   switch (node.type) {
     case 'column':
@@ -163,7 +157,7 @@ function emitRawNode(node, ctx) {
     }
     case 'text': {
       const text = node.bind
-        ? (node.bind.startsWith('item.') ? `item.${node.bind.slice('item.'.length)}` : `String(${node.bind})`)
+        ? (isItemBinding(node.bind) ? `item.${itemBindingField(node.bind)}` : `String(${node.bind})`)
         : `"${esc(node.value)}"`;
       const lines = [`Text(${text})`];
       lines.push(`    .font(Theme.Typography.${node.role ?? 'body'})`);
@@ -266,7 +260,7 @@ function emitRawNode(node, ctx) {
       return lines;
     }
     case 'list': {
-      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx);
+      const groupedRows = node.itemTemplate.length === 1 && emitsGroupedRow(node.itemTemplate[0], ctx.components);
       const lines = [
         `VStack(alignment: .leading, spacing: ${groupedRows ? '0' : `Theme.Spacing.${node.spacing ?? 'normal'}`}) {`,
         `    ForEach(${node.bind}) { item in`,
@@ -371,11 +365,11 @@ export function emitScreenSwift(ir, components = []) {
   lines.push('    var body: some View {');
 
   const layout = screenLayout(ir);
-  const actionsByName = new Map(actions.map(action => [action.name, action]));
-  const componentsByName = new Map(components.map(component => [component.component, component]));
-  const bindings = new Set((ir.state ?? []).map(state => state.name));
+  const actionsMap = actionsByName(actions);
+  const componentsMap = componentsByName(components);
+  const bindings = stateBindingNames(ir);
   const body = [];
-  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: false, layout, actions: actionsByName, components: componentsByName, bindings }));
+  for (const node of ir.body) body.push(...emitNode(node, { isRootContent: false, layout, actions: actionsMap, components: componentsMap, bindings }));
   const content = ir.body.length > 1 ? ['VStack {', ...indent(body, 1), '}'] : body;
   const fallbackAlignment = rootAlignment(ir.body.length === 1 ? ir.body[0] : undefined);
   const alignment = screenAlignment(layout, fallbackAlignment);
@@ -410,9 +404,9 @@ export function emitComponentSwift(ir, components = []) {
   lines.push('');
   lines.push('    var body: some View {');
 
-  const propActions = new Set((ir.props ?? []).filter(prop => prop.type === 'action').map(prop => prop.name));
-  const componentsByName = new Map(components.map(component => [component.component, component]));
-  const bindings = new Set((ir.props ?? []).map(prop => prop.name));
+  const propActions = actionPropNames(ir);
+  const componentsMap = componentsByName(components);
+  const bindings = propBindingNames(ir);
   const body = [];
   for (const node of ir.body) {
     body.push(...emitNode(node, {
@@ -420,7 +414,7 @@ export function emitComponentSwift(ir, components = []) {
       layout: screenLayout({}),
       actions: new Map(),
       actionProps: propActions,
-      components: componentsByName,
+      components: componentsMap,
       bindings,
     }));
   }
