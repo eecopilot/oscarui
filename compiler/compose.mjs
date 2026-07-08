@@ -1,5 +1,7 @@
 import { indent, esc, HEADER } from './util.mjs';
 import { pascal } from './util.mjs';
+export { emitThemeKotlin } from './renderer/compose-theme.mjs';
+import { KT_PROP_TYPE, KT_TYPE, emitListStateTypes, emitStateDefault, kotlinLiteral } from './renderer/compose-state.mjs';
 import {
   actionPropNames,
   actionsByName,
@@ -8,55 +10,11 @@ import {
   isItemBinding,
   isLocalIdentifier,
   itemBindingField,
-  listItemType,
   propBindingNames,
   screenLayout,
   stateBindingNames,
 } from './renderer/ir-utils.mjs';
 
-const WEIGHT = { bold: 'FontWeight.Bold', semibold: 'FontWeight.SemiBold', regular: 'FontWeight.Normal' };
-
-export function emitThemeKotlin(tokens) {
-  const lines = [
-    `// ${HEADER}`,
-    'package app.generated',
-    '',
-    'import androidx.compose.ui.graphics.Color',
-    'import androidx.compose.ui.text.TextStyle',
-    'import androidx.compose.ui.text.font.FontWeight',
-    'import androidx.compose.ui.unit.dp',
-    'import androidx.compose.ui.unit.sp',
-    '',
-    'object Theme {',
-    '    object Spacing {',
-  ];
-  for (const [k, v] of Object.entries(tokens.spacing))
-    lines.push(`        val ${k} = ${v}.dp`);
-  lines.push('    }');
-  lines.push('    object Size {');
-  for (const [k, v] of Object.entries(tokens.size ?? {}))
-    lines.push(`        val ${k} = ${v}.dp`);
-  lines.push('    }');
-  lines.push('    object Radius {');
-  for (const [k, v] of Object.entries(tokens.radius))
-    lines.push(`        val ${k} = ${v}.dp`);
-  lines.push('    }');
-  lines.push('    object Colors {');
-  for (const [k, v] of Object.entries(tokens.color))
-    lines.push(`        val ${k} = Color(0xFF${v.slice(1)})`);
-  lines.push('    }');
-  lines.push('    object Typography {');
-  for (const [k, v] of Object.entries(tokens.typography))
-    lines.push(`        val ${k} = TextStyle(fontSize = ${v.size}.sp, fontWeight = ${WEIGHT[v.weight]})`);
-  lines.push('    }');
-  lines.push('}');
-  lines.push('');
-  return lines.join('\n');
-}
-
-const KT_TYPE = { string: 'String', bool: 'Boolean', int: 'Int', double: 'Double' };
-const KT_PROP_TYPE = { ...KT_TYPE, action: '() -> Unit' };
-const KT_DEFAULT = { string: '""', bool: 'false', int: '0', double: '0.0' };
 const KEYBOARD = { email: 'KeyboardType.Email', number: 'KeyboardType.Number', phone: 'KeyboardType.Phone' };
 
 function alignColumn(a) {
@@ -76,13 +34,6 @@ function addRootContentSize(modifiers, layout) {
     return;
   }
   modifiers.push(`.widthIn(max = Theme.Size.content${pascal(layout.contentWidth)})`, '.fillMaxWidth()');
-}
-
-function kotlinLiteral(value, type) {
-  if (type === 'string') return `"${esc(value ?? '')}"`;
-  if (type === 'bool') return value === true ? 'true' : 'false';
-  if (type === 'double') return value === undefined ? '0.0' : String(value);
-  return value === undefined ? '0' : String(value);
 }
 
 function propLiteral(value, type, ctx) {
@@ -348,38 +299,6 @@ function emitRawNode(node, ctx) {
 
 function emitNode(node, ctx) {
   return applyVisibility(emitRawNode(node, ctx), node);
-}
-
-function emitListStateTypes(ir) {
-  const lines = [];
-  for (const state of ir.state ?? []) {
-    if (state.type !== 'list') continue;
-    const fields = [
-      'val id: Int',
-      ...state.item.fields.map(field => `val ${field.name}: ${KT_TYPE[field.type]}`),
-    ];
-    lines.push(`data class ${listItemType(state)}(`);
-    lines.push(...indent(fields.map((field, index) => `${field}${index < fields.length - 1 ? ',' : ''}`), 1));
-    lines.push(')', '');
-  }
-  return lines;
-}
-
-function emitStateDefault(state) {
-  if (state.type !== 'list') {
-    return state.default !== undefined
-      ? kotlinLiteral(state.default, state.type)
-      : KT_DEFAULT[state.type];
-  }
-
-  const itemType = listItemType(state);
-  const values = state.default ?? [];
-  if (!values.length) return 'emptyList()';
-  const rows = values.map((item, index) => {
-    const fields = state.item.fields.map(field => `${field.name} = ${kotlinLiteral(item[field.name], field.type)}`);
-    return `${itemType}(id = ${index}, ${fields.join(', ')})`;
-  });
-  return `listOf(\n${indent(rows.map((row, index) => `${row}${index < rows.length - 1 ? ',' : ''}`), 2).join('\n')}\n    )`;
 }
 
 function componentImports() {

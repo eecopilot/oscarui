@@ -1,4 +1,6 @@
 import { camel, indent, esc, pascal, HEADER } from './util.mjs';
+export { emitThemeSwift } from './renderer/swift-theme.mjs';
+import { SWIFT_PROP_TYPE, SWIFT_TYPE, emitListStateTypes, emitStateDefault, swiftLiteral } from './renderer/swift-state.mjs';
 import {
   actionPropNames,
   actionsByName,
@@ -13,49 +15,6 @@ import {
   stateBindingNames,
 } from './renderer/ir-utils.mjs';
 
-const WEIGHT = { bold: '.bold', semibold: '.semibold', regular: '.regular' };
-
-export function emitThemeSwift(tokens) {
-  const lines = [`// ${HEADER}`, 'import SwiftUI', '', 'enum Theme {'];
-  lines.push('    enum Spacing {');
-  for (const [k, v] of Object.entries(tokens.spacing))
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  lines.push('    }');
-  lines.push('    enum Size {');
-  for (const [k, v] of Object.entries(tokens.size ?? {}))
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  lines.push('    }');
-  lines.push('    enum Radius {');
-  for (const [k, v] of Object.entries(tokens.radius))
-    lines.push(`        static let ${k}: CGFloat = ${v}`);
-  lines.push('    }');
-  lines.push('    enum Colors {');
-  for (const [k, v] of Object.entries(tokens.color))
-    lines.push(`        static let ${k} = Color(hex: "${v}")`);
-  lines.push('    }');
-  lines.push('    enum Typography {');
-  for (const [k, v] of Object.entries(tokens.typography))
-    lines.push(`        static let ${k} = Font.system(size: ${v.size}, weight: ${WEIGHT[v.weight]})`);
-  lines.push('    }');
-  lines.push('}');
-  lines.push('');
-  lines.push(...`extension Color {
-    init(hex: String) {
-        let v = UInt64(hex.dropFirst(), radix: 16) ?? 0
-        self.init(
-            red: Double((v >> 16) & 0xFF) / 255,
-            green: Double((v >> 8) & 0xFF) / 255,
-            blue: Double(v & 0xFF) / 255
-        )
-    }
-}`.split('\n'));
-  lines.push('');
-  return lines.join('\n');
-}
-
-const SWIFT_TYPE = { string: 'String', bool: 'Bool', int: 'Int', double: 'Double' };
-const SWIFT_PROP_TYPE = { ...SWIFT_TYPE, action: '() -> Void' };
-const SWIFT_DEFAULT = { string: '""', bool: 'false', int: '0', double: '0.0' };
 const KEYBOARD = { email: '.emailAddress', number: '.numberPad', phone: '.phonePad', default: '.default' };
 
 function alignVStack(a) {
@@ -90,13 +49,6 @@ function horizontalFrameAlignment(node) {
 function contentWidthModifier(layout, alignment = '.center') {
   if (layout.contentWidth === 'fill') return null;
   return `.frame(maxWidth: Theme.Size.content${pascal(layout.contentWidth)}, alignment: ${alignment})`;
-}
-
-function swiftLiteral(value, type) {
-  if (type === 'string') return `"${esc(value ?? '')}"`;
-  if (type === 'bool') return value === true ? 'true' : 'false';
-  if (type === 'double') return value === undefined ? '0.0' : String(value);
-  return value === undefined ? '0' : String(value);
 }
 
 function conditionExpression(condition) {
@@ -309,37 +261,6 @@ function emitRawNode(node, ctx) {
 
 function emitNode(node, ctx) {
   return applyVisibility(emitRawNode(node, ctx), node);
-}
-
-function emitListStateTypes(ir) {
-  const lines = [];
-  for (const state of ir.state ?? []) {
-    if (state.type !== 'list') continue;
-    lines.push(`    struct ${listItemType(state)}: Identifiable, Hashable {`);
-    lines.push('        let id: Int');
-    for (const field of state.item.fields) {
-      lines.push(`        let ${field.name}: ${SWIFT_TYPE[field.type]}`);
-    }
-    lines.push('    }', '');
-  }
-  return lines;
-}
-
-function emitStateDefault(state) {
-  if (state.type !== 'list') {
-    return state.default !== undefined
-      ? swiftLiteral(state.default, state.type)
-      : SWIFT_DEFAULT[state.type];
-  }
-
-  const itemType = listItemType(state);
-  const values = state.default ?? [];
-  if (!values.length) return '[]';
-  const rows = values.map((item, index) => {
-    const fields = state.item.fields.map(field => `${field.name}: ${swiftLiteral(item[field.name], field.type)}`);
-    return `${itemType}(id: ${index}, ${fields.join(', ')})`;
-  });
-  return `[\n${indent(rows.map((row, index) => `${row}${index < rows.length - 1 ? ',' : ''}`), 2).join('\n')}\n    ]`;
 }
 
 export function emitScreenSwift(ir, components = []) {
