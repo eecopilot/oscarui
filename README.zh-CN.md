@@ -7,6 +7,12 @@ OscarUI 是一个 UI 编译器原型：用一份 UI 意图描述文件生成 iOS
 
 核心思路是把 AI 的不确定性限制在 `src/screens/*.ui.yaml` 这类 IR 文件里，再由确定性编译器生成两端原生代码。同一份 IR 输入，应产生可重复、可验证的原生输出。
 
+## 效果展示
+
+同一份登录页 IR，分别渲染为 iOS 原生 SwiftUI 和 Android 原生 Jetpack Compose 界面：
+
+![OscarUI 登录页在 iOS 和 Android 上的运行效果](docs/images/demo.png)
+
 ## 快速开始
 
 安装依赖：

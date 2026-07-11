@@ -7,6 +7,12 @@ The name stands for Open Source Cross Apple/Android Renderer.
 
 The core idea is to keep AI-driven changes inside IR files such as `src/screens/*.ui.yaml`, then let a deterministic compiler generate native code for both platforms. The same IR input should produce repeatable, verifiable native output.
 
+## Demo
+
+The same login-screen IR rendered as native SwiftUI on iOS and Jetpack Compose on Android:
+
+![OscarUI login screen running on iOS and Android](docs/images/demo.png)
+
 ## Quick Start
 
 Install dependencies:
