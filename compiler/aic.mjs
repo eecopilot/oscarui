@@ -24,38 +24,57 @@ import { installRuntimeAndroid, installRuntimeIos } from './runtime/install.mjs'
 import { runtimeParityReport } from './runtime/parity.mjs';
 import { runtimeSnapshotParity } from './runtime/snapshot-parity.mjs';
 import { acceptVisualBaselines, reviewVisualBaselines } from './visual-review.mjs';
+import { createDiagnostic, printProblemReport, recoveryHint } from './diagnostics.mjs';
+
+function fatal(error) {
+  const message = error instanceof Error ? error.message : String(error);
+  if (process.argv.includes('--json')) {
+    console.log(JSON.stringify({ ok: false, diagnostics: [createDiagnostic('', message)] }, null, 2));
+  } else {
+    console.error(`✗ ${message}`);
+    console.error(`Hint: ${recoveryHint(message)}`);
+  }
+  process.exit(1);
+}
+
+process.on('uncaughtException', fatal);
+process.on('unhandledRejection', fatal);
 
 const { validateSchema, validateAppConfigSchema, validatePluginSchema, validateRuntimeBundleSchema } = createSchemaValidators(ROOT);
 
 function validate() {
+  const structured = process.argv.includes('--json');
+  const diagnostics = [];
+  const success = file => { if (!structured) console.log(`✓ ${file}`); };
+  const failure = (file, problems) => {
+    for (const problem of problems) diagnostics.push(createDiagnostic(file, problem));
+    if (!structured) printProblemReport(file, problems);
+  };
   const screens = loadScreens(ROOT, SCREEN_DIR, SRC_ROOT);
   const components = loadComponents(ROOT, COMPONENT_DIR, SRC_ROOT);
   const tokens = loadTokens(SRC_ROOT);
   const appConfig = loadAppConfig(ROOT);
   if (!screens.length) {
-    console.error('no .ui.yaml files found in src/screens/');
-    process.exit(1);
+    failure('src/screens/', ['no .ui.yaml files found']);
   }
-  let failed = false;
+  let failed = !screens.length;
   const appConfigErrors = [];
   if (!validateAppConfigSchema(appConfig)) {
     for (const e of validateAppConfigSchema.errors)
-      appConfigErrors.push(`${e.instancePath || '/'} ${e.message}`);
+      appConfigErrors.push(`${e.instancePath || '/'}: ${e.message}`);
   } else {
-    appConfigErrors.push(...appConfigProblems(appConfig));
+    appConfigErrors.push(...appConfigProblems(appConfig, ROOT));
   }
   if (appConfigErrors.length) {
     failed = true;
-    console.error('✗ src/app.config.yaml');
-    for (const p of appConfigErrors) console.error(`    ${p}`);
+    failure('src/app.config.yaml', appConfigErrors);
   } else {
-    console.log('✓ src/app.config.yaml');
+    success('src/app.config.yaml');
   }
   const tokenProblems = themeProblems(tokens);
   if (tokenProblems.length) {
     failed = true;
-    console.error('✗ src/theme/tokens.yaml');
-    for (const p of tokenProblems) console.error(`    ${p}`);
+    failure('src/theme/tokens.yaml', tokenProblems);
   }
   const screenFilesByName = new Map();
   const componentFilesByName = new Map();
@@ -65,14 +84,13 @@ function validate() {
   const entryScreens = screens.filter(({ ir }) => ir.entry);
   if (entryScreens.length > 1) {
     failed = true;
-    console.error('✗ src/screens/');
-    for (const { file, ir } of entryScreens) console.error(`    entry screen "${ir.screen}" declared in ${file}`);
+    failure('src/screens/', entryScreens.map(({ file, ir }) => `entry screen "${ir.screen}" declared in ${file}`));
   }
   for (const { file, sourceFile, raw, ir } of screens) {
     const problems = [];
     if (!validateSchema(raw)) {
       for (const e of validateSchema.errors)
-        problems.push(`${e.instancePath || '/'} ${e.message}`);
+        problems.push(`${e.instancePath || '/'}: ${e.message}`);
     } else {
       problems.push(...componentRefProblems(raw, ROOT, sourceFile, SRC_ROOT));
       if (screenFilesByName.has(ir.screen)) {
@@ -85,17 +103,16 @@ function validate() {
     }
     if (problems.length) {
       failed = true;
-      console.error(`✗ ${file}`);
-      for (const p of problems) console.error(`    ${p}`);
+      failure(file, problems);
     } else {
-      console.log(`✓ ${file}`);
+      success(file);
     }
   }
   for (const { file, sourceFile, raw, ir } of components) {
     const problems = [];
     if (!validateSchema(raw)) {
       for (const e of validateSchema.errors)
-        problems.push(`${e.instancePath || '/'} ${e.message}`);
+        problems.push(`${e.instancePath || '/'}: ${e.message}`);
     } else {
       problems.push(...componentRefProblems(raw, ROOT, sourceFile, SRC_ROOT));
       if (componentFilesByName.has(ir.component)) {
@@ -110,12 +127,12 @@ function validate() {
     }
     if (problems.length) {
       failed = true;
-      console.error(`✗ ${file}`);
-      for (const p of problems) console.error(`    ${p}`);
+      failure(file, problems);
     } else {
-      console.log(`✓ ${file}`);
+      success(file);
     }
   }
+  if (structured) console.log(JSON.stringify({ ok: !failed, diagnostics }, null, 2));
   if (failed) process.exit(1);
   return { screens, components, tokens, appConfig };
 }
@@ -193,6 +210,7 @@ if (cmd === 'validate') validate();
 else if (cmd === 'build') build();
 else if (cmd === 'runtime:validate') validateRuntime();
 else if (cmd === 'build:runtime') buildRuntime();
+else if (cmd === 'runtime:selftest') await import('./runtime/selftest.mjs');
 else if (cmd === 'author:loop') runAuthorLoop(ROOT);
 else if (cmd === 'figma:import') importFigma(ROOT, process.argv[3], process.argv[4]);
 else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens, process.argv[3] ?? 'compile');
@@ -259,6 +277,6 @@ else if (cmd === 'snapshots:runtime') {
   captureSnapshots(ROOT, screens, { variant: 'runtime' });
 }
 else {
-  console.log('usage: node compiler/aic.mjs <validate|build|runtime:validate|build:runtime|runtime:parity|runtime:install:ios|runtime:install:android|author:loop|figma:import|snapshots|snapshots:runtime|snapshots:diff|snapshots:runtime-parity|snapshots:accept|visual:review|plugins:validate|doctor:ios|dry-run:ios|dev:ios|dry-run:ios:runtime|dev:ios:runtime|doctor:android|dry-run:android|dev:android|dry-run:android:runtime|dev:android:runtime>');
+  console.log('usage: node compiler/aic.mjs <validate|build|runtime:validate|build:runtime|runtime:selftest|runtime:parity|runtime:install:ios|runtime:install:android|author:loop|figma:import|snapshots|snapshots:runtime|snapshots:diff|snapshots:runtime-parity|snapshots:accept|visual:review|plugins:validate|doctor:ios|dry-run:ios|dev:ios|dry-run:ios:runtime|dev:ios:runtime|doctor:android|dry-run:android|dev:android|dry-run:android:runtime|dev:android:runtime>');
   process.exit(1);
 }

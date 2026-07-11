@@ -8,7 +8,7 @@ export function loadAppConfig(root) {
   return YAML.parse(fs.readFileSync(file, 'utf8'));
 }
 
-export function appConfigProblems(config) {
+export function appConfigProblems(config, root = process.cwd()) {
   const problems = [];
   const privacy = config.privacy ?? {};
   const permissions = config.permissions ?? {};
@@ -34,6 +34,23 @@ export function appConfigProblems(config) {
 
   if (config.runtime?.allowRemoteUpdates && !String(config.runtime?.remoteBundleURL ?? '').startsWith('https://')) {
     problems.push('runtime.allowRemoteUpdates requires an https runtime.remoteBundleURL');
+  }
+
+  for (const [name, relative] of Object.entries(config.assets ?? {})) {
+    const file = path.resolve(root, relative);
+    const assetRoot = path.resolve(root, 'src/assets');
+    if (!file.startsWith(`${assetRoot}${path.sep}`)) {
+      problems.push(`assets.${name} must stay inside src/assets/`);
+    } else if (!fs.existsSync(file)) {
+      problems.push(`assets.${name} file does not exist: ${relative}`);
+    } else {
+      const header = fs.readFileSync(file).subarray(0, 24);
+      if (header.subarray(0, 8).toString('hex') !== '89504e470d0a1a0a') {
+        problems.push(`assets.${name} must be a PNG file: ${relative}`);
+      } else if (name === 'appIcon' && (header.readUInt32BE(16) !== 1024 || header.readUInt32BE(20) !== 1024)) {
+        problems.push('assets.appIcon must be a 1024x1024 PNG');
+      }
+    }
   }
 
   return problems;

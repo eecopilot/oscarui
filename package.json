@@ -2,7 +2,32 @@
   "name": "oscarui",
   "version": "1.0.0",
   "description": "OscarUI: Open Source Cross Apple/Android Renderer",
-  "main": "index.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eecopilot/oscarui.git"
+  },
+  "homepage": "https://github.com/eecopilot/oscarui#readme",
+  "bugs": {
+    "url": "https://github.com/eecopilot/oscarui/issues"
+  },
+  "bin": {
+    "oscarui": "bin/oscarui.mjs"
+  },
+  "files": [
+    "bin/",
+    "compiler/",
+    "schema/",
+    "runtime/",
+    "templates/",
+    "docs/",
+    "CHANGELOG.md",
+    "README.md",
+    "README.zh-CN.md",
+    "ROADMAP.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "validate": "node compiler/aic.mjs validate",
     "build": "node compiler/aic.mjs build",
@@ -33,9 +58,25 @@
     "visual:review": "node compiler/aic.mjs visual:review",
     "author:visual-review": "npm run snapshots && npm run visual:review",
     "verify:ui": "node compiler/aic.mjs snapshots",
-    "test": "npm run validate && npm run plugins:validate && npm run build && npm run build:runtime && npm run runtime:selftest && npm run runtime:parity"
+    "cli": "node bin/oscarui.mjs",
+    "pack:check": "node compiler/package-selftest.mjs",
+    "publish:dry-run": "npm publish --dry-run --ignore-scripts",
+    "doctor:ci": "node compiler/doctor-ci.mjs",
+    "release:check": "node compiler/release-check.mjs",
+    "golden:update": "node compiler/golden-test.mjs --update",
+    "golden:verify": "node compiler/golden-test.mjs",
+    "host:verify": "node compiler/host-reproducibility.mjs",
+    "diagnostics:test": "node compiler/diagnostics-selftest.mjs",
+    "test": "npm run validate && npm run plugins:validate && npm run build && npm run build:runtime && npm run runtime:selftest && npm run runtime:parity && npm run golden:verify && npm run host:verify && npm run diagnostics:test"
   },
-  "keywords": [],
+  "keywords": [
+    "swiftui",
+    "jetpack-compose",
+    "ios",
+    "android",
+    "ui-compiler",
+    "ai"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",

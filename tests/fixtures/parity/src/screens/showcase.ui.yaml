@@ -1,0 +1,37 @@
+screen: Showcase
+title: Renderer Showcase
+
+layout:
+  safeArea: false
+  contentPosition: center
+  contentWidth: fill
+
+state:
+  - name: showImage
+    type: bool
+    default: true
+
+body:
+  - type: column
+    spacing: normal
+    padding: loose
+    align: center
+    children:
+      - type: row
+        spacing: tight
+        align: center
+        children:
+          - type: text
+            role: heading
+            value: Swift
+          - type: spacer
+          - type: text
+            role: heading
+            value: Kotlin
+      - type: image
+        url: https://example.com/oscarui.png
+        height: 180
+        radius: large
+        visibleWhen:
+          state: showImage
+          equals: true

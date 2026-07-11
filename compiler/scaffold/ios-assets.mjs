@@ -8,13 +8,13 @@ export function emitAssetCatalogContents() {
 `;
 }
 
-export function emitAppIconContents() {
+export function emitAppIconContents(filename) {
   return `{
   "images" : [
     {
       "idiom" : "universal",
       "platform" : "ios",
-      "size" : "1024x1024"
+      "size" : "1024x1024"${filename ? `,\n      "filename" : "${filename}"` : ''}
     },
     {
       "appearances" : [
@@ -37,6 +37,23 @@ export function emitAppIconContents() {
       "idiom" : "universal",
       "platform" : "ios",
       "size" : "1024x1024"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}
+`;
+}
+
+export function emitLaunchImageContents(filename) {
+  return `{
+  "images" : [
+    {
+      "filename" : "${filename}",
+      "idiom" : "universal",
+      "scale" : "1x"
     }
   ],
   "info" : {

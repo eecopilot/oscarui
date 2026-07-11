@@ -19,7 +19,17 @@ OscarUI 是一个 UI 编译器原型：用一份 UI 意图描述文件生成 iOS
 
 ## 快速开始
 
-安装依赖：
+从空目录开始的完整步骤请看 [Quickstart](docs/quickstart.md)。
+
+安装并体验当前源码对应的本地 npm 包：
+
+```sh
+npm pack
+npm install --global ./oscarui-1.0.0.tgz
+oscarui init my-app
+```
+
+开发 OscarUI 仓库本身时，在当前目录安装依赖：
 
 ```sh
 npm install
@@ -168,6 +178,13 @@ npm run figma:import -- path/to/figma.json src/screens/imported.ui.yaml
 ```sh
 npm run plugins:validate
 ```
+
+## 详细文档
+
+- [从空目录创建并运行项目](docs/quickstart.md)
+- [表单、导航、列表、组件、原生配置和资源示例](docs/examples.md)
+- [Xcode、模拟器、Android SDK、Gradle 和 Emulator 排障](docs/troubleshooting.md)
+- [iOS/Android 与 Compile/Runtime 的有意差异](docs/platform-differences.md)
 
 ## UI IR 示例
 

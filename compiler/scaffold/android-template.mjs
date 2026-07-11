@@ -23,6 +23,7 @@ export function androidConfig(config = {}) {
     targetSdk: config.platform?.android?.targetSdk ?? ANDROID_TARGET_SDK,
     permissions: config.permissions ?? {},
     links: config.links ?? {},
+    assets: config.assets ?? {},
   };
 }
 
@@ -226,7 +227,7 @@ export function emitManifest(config = {}) {
 ${permissions.length ? `${permissions.join('\n')}\n` : ''}
     <application
         android:label="${xmlEscape(android.displayName)}"
-        android:theme="@style/AppTheme">
+        ${android.assets.appIcon ? 'android:icon="@drawable/app_icon"\n        ' : ''}android:theme="@style/AppTheme">
         <activity
             android:name=".MainActivity"
             android:exported="true">
@@ -241,10 +242,21 @@ ${appLinks ? `${appLinks}\n` : ''}
 `;
 }
 
-export function emitStyles() {
+export function emitStyles(config = {}) {
+  const launchImage = config.assets?.launchImage;
   return `<resources>
-    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar" />
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">${launchImage ? '\n        <item name="android:windowBackground">@drawable/launch_screen</item>\n    ' : ''}</style>
 </resources>
+`;
+}
+
+export function emitLaunchDrawable() {
+  return `<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@android:color/white" />
+    <item>
+        <bitmap android:src="@drawable/launch_image" android:gravity="center" />
+    </item>
+</layer-list>
 `;
 }
 

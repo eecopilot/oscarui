@@ -1,0 +1,57 @@
+app:
+  name: ParityApp
+  displayName: OscarUI Parity
+  bundleId: dev.oscarui.ParityApp
+  applicationId: dev.oscarui.parity
+  versionName: "2.3.4"
+  versionCode: 234
+
+platform:
+  ios:
+    deploymentTarget: "17.0"
+  android:
+    compileSdk: 35
+    minSdk: 23
+    targetSdk: 35
+
+permissions:
+  camera:
+    enabled: true
+  photoLibrary:
+    enabled: false
+  locationWhenInUse:
+    enabled: false
+  microphone:
+    enabled: false
+  notifications:
+    enabled: false
+
+privacy:
+  cameraUsage: "Capture a profile image."
+  photoLibraryUsage: ""
+  locationWhenInUseUsage: ""
+  microphoneUsage: ""
+
+links:
+  urlSchemes: [oscarui-parity]
+  universalLinks: [parity.oscarui.dev]
+  androidAppLinks:
+    - host: parity.oscarui.dev
+      pathPrefix: /open
+      autoVerify: true
+
+orientation:
+  phone: all
+  tablet: landscape
+
+assets:
+  appIcon: src/assets/app-icon.png
+  launchImage: src/assets/launch.png
+
+navigation:
+  animation: none
+
+runtime:
+  allowRemoteUpdates: false
+  remoteBundleURL: ""
+  requestTimeoutSeconds: 15

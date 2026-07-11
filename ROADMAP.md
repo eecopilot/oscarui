@@ -99,36 +99,37 @@ This file tracks project phases. README files should describe the project and da
 
 ## Phase 4: Production Hardening & Developer Experience
 
-- [ ] CLI packaging and distribution
-  - [ ] Publish a usable npm CLI entrypoint
-  - [ ] Support project initialization from a clean directory
-  - [ ] Add version, help, and command discovery output
-  - [ ] Keep local `.aic/` build artifacts outside source control
-- [ ] CI and release workflow
-  - [ ] Add GitHub Actions for validate, plugin validation, and build
-  - [ ] Add platform doctor checks that can run safely in CI where possible
-  - [ ] Add release tagging and changelog generation
-  - [ ] Add npm publish dry-run checks
-- [ ] Renderer stability and parity
-  - [ ] Expand golden generated-code fixtures for SwiftUI and Compose
-  - [ ] Track renderer output changes with readable diffs
-  - [ ] Add parity smoke tests for navigation, lists, forms, components, and app config
-  - [ ] Document intentional platform differences
-- [ ] Native host customization
-  - [ ] Support project display name, bundle id, app id, version, and orientation overrides end to end
-  - [ ] Support app icons and launch assets in generated host projects
-  - [ ] Add clear extension points for hand-written native action implementations
-  - [ ] Keep generated host skeletons reproducible and safe to delete
-- [ ] Error reporting and diagnostics
-  - [ ] Improve validation messages with file paths and node context
-  - [ ] Add actionable hints for common schema, token, component, and native action errors
-  - [ ] Make dev command failures easier to recover from
-  - [ ] Add structured diagnostic output for AI tooling
-- [ ] Documentation and examples
-  - [ ] Add a quickstart from empty repo to running iOS and Android apps
-  - [ ] Add examples for forms, navigation, lists, components, and native config
-  - [ ] Add troubleshooting docs for Xcode, simulators, Android SDK, Gradle, and emulators
-  - [ ] Keep README focused on daily usage and link deeper docs out
+- [x] Installable CLI package
+  - [x] Add a publishable `oscarui` npm binary with explicit package files and Node.js version requirements
+  - [x] Support `oscarui init` from an empty directory without copying local build artifacts
+  - [x] Add `--version`, `--help`, and command discovery output
+  - [x] Verify the packed tarball by installing and running it in a temporary clean project
+  - [x] Keep local `.aic/` build artifacts outside source control
+- [x] CI and release automation
+  - [x] Add GitHub Actions for validation, plugin validation, compile/runtime builds, and deterministic tests
+  - [x] Add non-interactive platform environment reports that are safe on hosted CI runners
+  - [x] Add a release workflow that validates a version tag and creates release notes from `CHANGELOG.md`
+  - [x] Add `npm pack` and publish dry-run gates without requiring registry credentials
+- [x] Renderer stability and parity
+  - [x] Add committed golden output for SwiftUI, Compose, and Runtime Mode
+  - [x] Add a deterministic golden verification command with readable file diffs
+  - [x] Add parity fixtures covering navigation, lists, forms, components, conditions, and native app config
+  - [x] Document intentional compile/runtime and iOS/Android differences
+- [x] Native host customization
+  - [x] Support project display name, bundle id, app id, version, and orientation overrides end to end
+  - [x] Support app icons and launch assets in generated host projects
+  - [x] Preserve hand-written Swift and Kotlin native action implementations outside generated output
+  - [x] Add reproducibility checks proving generated host skeletons are safe to delete and rebuild
+- [x] Error reporting and diagnostics
+  - [x] Improve validation messages with file paths and node context
+  - [x] Add actionable hints for common schema, token, component, and native action errors
+  - [x] Make dev command failures easier to recover from
+  - [x] Add stable JSON diagnostic output for CI and AI tooling
+- [x] Documentation and examples
+  - [x] Add a quickstart from empty repo to running iOS and Android apps
+  - [x] Add copyable examples for forms, navigation, lists, components, and native config
+  - [x] Add troubleshooting docs for Xcode, simulators, Android SDK, Gradle, and emulators
+  - [x] Keep README focused on daily usage and link deeper docs out
 
 ## Phase 5: Component Catalog & AI Authoring Kit
 

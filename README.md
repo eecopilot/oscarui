@@ -19,7 +19,17 @@ The same login-screen IR rendered as native SwiftUI on iOS and Jetpack Compose o
 
 ## Quick Start
 
-Install dependencies:
+For a clean-directory walkthrough, see [Quickstart](docs/quickstart.md).
+
+Install and exercise the exact local npm package:
+
+```sh
+npm pack
+npm install --global ./oscarui-1.0.0.tgz
+oscarui init my-app
+```
+
+For repository development, install dependencies in this checkout:
 
 ```sh
 npm install
@@ -168,6 +178,13 @@ Validate plugin manifests:
 ```sh
 npm run plugins:validate
 ```
+
+## Documentation
+
+- [Start from an empty directory](docs/quickstart.md)
+- [Forms, navigation, lists, components, native config, and assets](docs/examples.md)
+- [Xcode, Simulator, Android SDK, Gradle, and emulator troubleshooting](docs/troubleshooting.md)
+- [Intentional iOS/Android and Compile/Runtime differences](docs/platform-differences.md)
 
 ## UI IR Example
 

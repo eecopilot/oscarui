@@ -94,6 +94,14 @@
         "tablet": { "enum": ["portrait", "landscape", "all"] }
       }
     },
+    "assets": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "appIcon": { "$ref": "#/$defs/pngAssetPath" },
+        "launchImage": { "$ref": "#/$defs/pngAssetPath" }
+      }
+    },
     "navigation": {
       "type": "object",
       "additionalProperties": false,
@@ -117,6 +125,10 @@
     }
   },
   "$defs": {
+    "pngAssetPath": {
+      "type": "string",
+      "pattern": "^src/assets/[A-Za-z0-9_./-]+\\.png$"
+    },
     "permission": {
       "type": "object",
       "required": ["enabled"],

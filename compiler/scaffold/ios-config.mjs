@@ -15,6 +15,7 @@ export function iosConfig(config = {}) {
     privacy: config.privacy ?? {},
     links: config.links ?? {},
     orientation: config.orientation ?? {},
+    assets: config.assets ?? {},
   };
 }
 

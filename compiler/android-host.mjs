@@ -10,6 +10,7 @@ import {
   emitAppBuildGradle,
   emitGradleProperties,
   emitLocalProperties,
+  emitLaunchDrawable,
   emitMainActivity,
   emitManifest,
   emitRootBuildGradle,
@@ -56,7 +57,17 @@ export function prepareAndroidHost(root, screens, config = {}, options = {}) {
   writeFile(path.join(androidRoot, 'local.properties'), emitLocalProperties(androidHome));
   writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle(config));
   writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest(config));
-  writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles());
+  writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles(config));
+  const drawableDir = path.join(appDir, 'src/main/res/drawable-nodpi');
+  if (android.assets.appIcon) {
+    fs.mkdirSync(drawableDir, { recursive: true });
+    fs.copyFileSync(path.resolve(root, android.assets.appIcon), path.join(drawableDir, 'app_icon.png'));
+  }
+  if (android.assets.launchImage) {
+    fs.mkdirSync(drawableDir, { recursive: true });
+    fs.copyFileSync(path.resolve(root, android.assets.launchImage), path.join(drawableDir, 'launch_image.png'));
+    writeFile(path.join(appDir, 'src/main/res/drawable/launch_screen.xml'), emitLaunchDrawable());
+  }
   if (runtimeMode) {
     const assetDir = path.join(appDir, 'src/main/assets');
     fs.mkdirSync(assetDir, { recursive: true });

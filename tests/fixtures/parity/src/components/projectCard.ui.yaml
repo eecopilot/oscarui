@@ -1,0 +1,15 @@
+component: ProjectCard
+
+props:
+  - name: title
+    type: string
+  - name: subtitle
+    type: string
+  - name: onSelect
+    type: action
+
+body:
+  - type: listRow
+    titleBind: title
+    subtitleBind: subtitle
+    action: onSelect

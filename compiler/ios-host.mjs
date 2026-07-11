@@ -7,6 +7,7 @@ import {
   emitAccentColorContents,
   emitAppIconContents,
   emitAssetCatalogContents,
+  emitLaunchImageContents,
   emitEntitlements,
   emitInfoPlist,
   emitProject,
@@ -42,8 +43,15 @@ export function prepareIosHost(root, config = {}, options = {}) {
   ];
 
   writeFile(path.join(appDir, 'Assets.xcassets/Contents.json'), emitAssetCatalogContents());
-  writeFile(path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/Contents.json'), emitAppIconContents());
+  const appIcon = ios.assets.appIcon ? path.resolve(root, ios.assets.appIcon) : null;
+  const launchImage = ios.assets.launchImage ? path.resolve(root, ios.assets.launchImage) : null;
+  writeFile(path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/Contents.json'), emitAppIconContents(appIcon ? 'AppIcon.png' : undefined));
+  if (appIcon) fs.copyFileSync(appIcon, path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/AppIcon.png'));
   writeFile(path.join(appDir, 'Assets.xcassets/AccentColor.colorset/Contents.json'), emitAccentColorContents());
+  if (launchImage) {
+    writeFile(path.join(appDir, 'Assets.xcassets/LaunchImage.imageset/Contents.json'), emitLaunchImageContents('LaunchImage.png'));
+    fs.copyFileSync(launchImage, path.join(appDir, 'Assets.xcassets/LaunchImage.imageset/LaunchImage.png'));
+  }
   if (runtimeMode) {
     fs.copyFileSync(path.join(root, 'generated/runtime/oscarui.runtime.json'), path.join(appDir, 'oscarui.runtime.json'));
   }

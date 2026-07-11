@@ -48,7 +48,12 @@ export function emitInfoPlist(config = {}) {
     '    <key>UIApplicationSupportsIndirectInputEvents</key>',
     '    <true/>',
     '    <key>UILaunchScreen</key>',
-    '    <dict/>',
+    ...(ios.assets.launchImage ? [
+      '    <dict>',
+      '        <key>UIImageName</key>',
+      '        <string>LaunchImage</string>',
+      '    </dict>',
+    ] : ['    <dict/>']),
     '    <key>UISupportedInterfaceOrientations</key>',
     '    <array>',
     ...iosOrientations(ios.orientation.phone).map(value => `        <string>${value}</string>`),
