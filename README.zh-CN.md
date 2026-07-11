@@ -5,6 +5,10 @@
 OscarUI 是一个 UI 编译器原型：用一份 UI 意图描述文件生成 iOS SwiftUI 和 Android Jetpack Compose 原生界面。
 这个名字可以解释为 Open Source Cross Apple/Android Renderer。
 
+> **一个 AI，两个真正的原生 App：iOS 用 Swift，Android 用 Kotlin。**
+>
+> OscarUI 想做的事情很简单：只开一个 AI，只描述一次 UI，同时写出两个原生 App。AI 负责修改共享的 UI 意图，确定性编译器为 iOS 生成可验证的 Swift/SwiftUI 代码，为 Android 生成 Kotlin/Jetpack Compose 代码——不是 WebView，也不是跨端运行时套壳。
+
 核心思路是把 AI 的不确定性限制在 `src/screens/*.ui.yaml` 这类 IR 文件里，再由确定性编译器生成两端原生代码。同一份 IR 输入，应产生可重复、可验证的原生输出。
 
 ## 效果展示

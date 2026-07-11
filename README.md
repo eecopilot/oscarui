@@ -5,6 +5,10 @@ English | [简体中文](README.zh-CN.md)
 OscarUI is a prototype UI compiler that turns a single UI intent file into native iOS SwiftUI and Android Jetpack Compose screens.
 The name stands for Open Source Cross Apple/Android Renderer.
 
+> **One AI. Two truly native apps: Swift for iOS, Kotlin for Android.**
+>
+> OscarUI has a simple goal: open one AI, describe the UI once, and build two native apps. AI edits the shared UI intent; a deterministic compiler generates verifiable Swift/SwiftUI code for iOS and Kotlin/Jetpack Compose code for Android—without turning the app into a WebView or a cross-platform runtime wrapper.
+
 The core idea is to keep AI-driven changes inside IR files such as `src/screens/*.ui.yaml`, then let a deterministic compiler generate native code for both platforms. The same IR input should produce repeatable, verifiable native output.
 
 ## Demo
