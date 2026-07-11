@@ -10,15 +10,24 @@ enum OscarRoute: Hashable {
 @MainActor
 final class OscarRouter: ObservableObject {
     @Published var path: [OscarRoute] = []
+    private let animationsEnabled = false
 
     func push(_ route: OscarRoute) {
-        path.append(route)
+        update { path.append(route) }
     }
 
     func pop() {
-        if !path.isEmpty {
-            path.removeLast()
+        update { if !path.isEmpty { path.removeLast() } }
+    }
+
+    private func update(_ change: () -> Void) {
+        if animationsEnabled {
+            change()
+            return
         }
+        var transaction = Transaction(animation: nil)
+        transaction.disablesAnimations = true
+        withTransaction(transaction) { change() }
     }
 }
 
@@ -28,16 +37,39 @@ struct OscarUI: App {
 
     var body: some Scene {
         WindowGroup {
-            NavigationStack(path: $router.path) {
-                LoginView(actions: LoginActionsImpl(), router: router)
-                    .navigationDestination(for: OscarRoute.self) { route in
-                        switch route {
-                        case .dashboard:
-                            DashboardView(actions: DashboardActionsImpl(), router: router)
-                        case .login:
-                            LoginView(actions: LoginActionsImpl(), router: router)
+            ZStack(alignment: .topLeading) {
+                NavigationStack(path: $router.path) {
+                    LoginView(actions: LoginActionsImpl(), router: router)
+                        .toolbar(.hidden, for: .navigationBar)
+                        .navigationDestination(for: OscarRoute.self) { route in
+                            switch route {
+                            case .dashboard:
+                                DashboardView(actions: DashboardActionsImpl(), router: router)
+                                    .padding(.top, 56)
+                                    .toolbar(.hidden, for: .navigationBar)
+                            case .login:
+                                LoginView(actions: LoginActionsImpl(), router: router)
+                                    .padding(.top, 56)
+                                    .toolbar(.hidden, for: .navigationBar)
+                            }
                         }
+                }
+
+                if !router.path.isEmpty {
+                    Button {
+                        router.pop()
+                    } label: {
+                        Text("‹")
+                            .font(Theme.Typography.title)
+                            .foregroundStyle(Theme.Colors.textPrimary)
+                            .frame(width: 48, height: 48)
                     }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel("Back")
+                    .padding(.leading, 8)
+                    .padding(.top, 8)
+                    .zIndex(1)
+                }
             }
         }
     }

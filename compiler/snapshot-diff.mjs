@@ -30,13 +30,13 @@ function comparePair(iosFile, androidFile) {
   };
 }
 
-export function diffSnapshots(root, screens) {
+export function diffSnapshots(root, screens, variant = 'compile') {
   const outDir = path.join(root, '.aic/snapshots');
   const reports = [];
 
   for (const { ir } of screens) {
-    const iosFile = path.join(outDir, `${ir.screen}.ios.png`);
-    const androidFile = path.join(outDir, `${ir.screen}.android.png`);
+    const iosFile = path.join(outDir, `${ir.screen}.${variant}.ios.png`);
+    const androidFile = path.join(outDir, `${ir.screen}.${variant}.android.png`);
     if (!fs.existsSync(iosFile) || !fs.existsSync(androidFile)) continue;
     reports.push(comparePair(iosFile, androidFile));
   }

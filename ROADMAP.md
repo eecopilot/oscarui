@@ -50,52 +50,52 @@ This file tracks project phases. README files should describe the project and da
 
 ## Phase 3: Runtime
 
-- [ ] Runtime IR package format
-  - [ ] Define a versioned runtime bundle manifest
-  - [ ] Include screens, components, tokens, app config, and metadata in one portable package
-  - [ ] Add deterministic bundle hashing for cache keys and update checks
-  - [ ] Add runtime compatibility fields for schema/compiler versions
-- [ ] Runtime IR validation path
-  - [ ] Reuse schema validation before packaging runtime IR
-  - [ ] Add runtime-specific semantic checks for unsupported nodes, props, actions, and tokens
-  - [ ] Emit clear diagnostics for runtime-incompatible UI files
-- [ ] iOS runtime renderer
-  - [ ] Load bundled runtime IR from app resources
-  - [ ] Interpret core layout nodes: `column`, `row`, `spacer`
-  - [ ] Interpret display/control nodes: `text`, `image`, `button`, `textField`
-  - [ ] Interpret data nodes: `list`, `listRow`, `component`
-  - [ ] Support `visibleWhen`, state defaults, list item binding, and component props
-  - [ ] Bridge declarative actions to native action implementations
-  - [ ] Bridge declarative navigation to the runtime router
-- [ ] Android runtime renderer
-  - [ ] Load bundled runtime IR from app assets
-  - [ ] Interpret core layout nodes: `column`, `row`, `spacer`
-  - [ ] Interpret display/control nodes: `text`, `image`, `button`, `textField`
-  - [ ] Interpret data nodes: `list`, `listRow`, `component`
-  - [ ] Support `visibleWhen`, state defaults, list item binding, and component props
-  - [ ] Bridge declarative actions to native action implementations
-  - [ ] Bridge declarative navigation to the runtime router
-- [ ] Hot update path
-  - [ ] Add local runtime bundle cache
-  - [ ] Add remote bundle fetch contract
-  - [ ] Verify bundle hash and compatibility before activation
-  - [ ] Fall back to the last known good bundle when activation fails
-  - [ ] Expose a dev-only command to install a runtime bundle into simulator/emulator
-- [ ] Runtime mode CLI
-  - [ ] Add `npm run build:runtime` to emit runtime bundles
-  - [ ] Add `npm run dev:ios:runtime`
-  - [ ] Add `npm run dev:android:runtime`
-  - [ ] Keep compile mode as the default stable path
-- [ ] Runtime parity checks
-  - [ ] Compare compile-mode and runtime-mode screenshots for the same IR
-  - [ ] Track known acceptable visual differences per platform
-  - [ ] Add runtime smoke screens for navigation, forms, lists, components, and conditional rendering
-- [ ] AI agent visual-regression self-review
-  - [ ] Capture fresh iOS and Android screenshots after AI-authored UI changes
-  - [ ] Compare screenshots against the last accepted baseline
-  - [ ] Generate a concise visual diff report with likely causes
-  - [ ] Feed visual diff findings into `.aic/ai-feedback.md`
-  - [ ] Gate high-risk UI changes on screenshot review before commit
+- [x] Runtime IR package format
+  - [x] Define a versioned runtime bundle manifest
+  - [x] Include screens, components, tokens, app config, and metadata in one portable package
+  - [x] Add deterministic bundle hashing for cache keys and update checks
+  - [x] Add runtime compatibility fields for schema/compiler versions
+- [x] Runtime IR validation path
+  - [x] Reuse schema validation before packaging runtime IR
+  - [x] Add runtime-specific semantic checks for unsupported nodes, props, actions, and tokens
+  - [x] Emit clear diagnostics for runtime-incompatible UI files
+- [x] iOS runtime renderer
+  - [x] Load bundled runtime IR from app resources
+  - [x] Interpret core layout nodes: `column`, `row`, `spacer`
+  - [x] Interpret display/control nodes: `text`, `image`, `button`, `textField`
+  - [x] Interpret data nodes: `list`, `listRow`, `component`
+  - [x] Support `visibleWhen`, state defaults, list item binding, and component props
+  - [x] Bridge declarative actions to native action implementations
+  - [x] Bridge declarative navigation to the runtime router
+- [x] Android runtime renderer
+  - [x] Load bundled runtime IR from app assets
+  - [x] Interpret core layout nodes: `column`, `row`, `spacer`
+  - [x] Interpret display/control nodes: `text`, `image`, `button`, `textField`
+  - [x] Interpret data nodes: `list`, `listRow`, `component`
+  - [x] Support `visibleWhen`, state defaults, list item binding, and component props
+  - [x] Bridge declarative actions to native action implementations
+  - [x] Bridge declarative navigation to the runtime router
+- [x] Hot update path
+  - [x] Add local runtime bundle cache
+  - [x] Add remote bundle fetch contract
+  - [x] Verify bundle hash and compatibility before activation
+  - [x] Fall back to the last known good bundle when activation fails
+  - [x] Expose a dev-only command to install a runtime bundle into simulator/emulator
+- [x] Runtime mode CLI
+  - [x] Add `npm run build:runtime` to emit runtime bundles
+  - [x] Add `npm run dev:ios:runtime`
+  - [x] Add `npm run dev:android:runtime`
+  - [x] Keep compile mode as the default stable path
+- [x] Runtime parity checks
+  - [x] Compare compile-mode and runtime-mode screenshots for the same IR
+  - [x] Track known acceptable visual differences per platform
+  - [x] Add runtime smoke coverage for navigation, forms, lists, components, conditional rendering, and core node types
+- [x] AI agent visual-regression self-review
+  - [x] Capture fresh iOS and Android screenshots after AI-authored UI changes
+  - [x] Compare screenshots against the last accepted baseline
+  - [x] Generate a concise visual diff report with likely causes
+  - [x] Feed visual diff findings into `.aic/ai-feedback.md`
+  - [x] Gate high-risk UI changes on screenshot review before commit
 
 ## Phase 4: Production Hardening & Developer Experience
 

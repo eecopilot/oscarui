@@ -27,6 +27,13 @@ npm run validate
 npm run build
 ```
 
+构建可选的版本化 Runtime bundle 和两端原生解释器：
+
+```sh
+npm run build:runtime
+npm run runtime:parity
+```
+
 运行轻量测试：
 
 ```sh
@@ -68,6 +75,7 @@ npm run snapshots:diff
 
 - `generated/ios/*.swift`
 - `generated/android/*.kt`
+- `generated/runtime/`
 - `.aic/ios/`
 - `.aic/android/`
 
@@ -100,6 +108,43 @@ npm run dry-run:android
 ```sh
 npm run dev:ios
 npm run dev:android
+```
+
+Runtime Mode 保持为可选能力，稳定默认路径仍是 Compile Mode：
+
+```sh
+npm run dry-run:ios:runtime
+npm run dry-run:android:runtime
+npm run dev:ios:runtime
+npm run dev:android:runtime
+```
+
+可移植 bundle 输出到 `generated/runtime/oscarui.runtime.json`。两端运行时会在激活前校验 SHA-256 与兼容区间，保留 current/last-known-good 缓存，并可按 `src/app.config.yaml` 的配置拉取 HTTPS 更新。
+
+可以在 `src/app.config.yaml` 全局配置路由动画：
+
+```yaml
+navigation:
+  animation: none # none | platform
+```
+
+`none` 会同时关闭两端的 push/pop 动画；`platform` 保留 SwiftUI 和 Compose 的平台默认动画。
+
+不重新编译 App，直接向已运行的 debug App 安装新 bundle：
+
+```sh
+npm run runtime:install:ios
+npm run runtime:install:android
+```
+
+分别采集 Compile/Runtime 截图、按平台比较，并维护视觉基线：
+
+```sh
+npm run snapshots
+npm run snapshots:runtime
+npm run snapshots:runtime-parity
+npm run snapshots:accept
+npm run author:visual-review
 ```
 
 把受限 Figma JSON 导入为草稿 screen：

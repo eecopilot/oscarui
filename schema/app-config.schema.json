@@ -93,6 +93,27 @@
         "phone": { "enum": ["portrait", "landscape", "all"] },
         "tablet": { "enum": ["portrait", "landscape", "all"] }
       }
+    },
+    "navigation": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "animation": { "enum": ["platform", "none"] }
+      }
+    },
+    "runtime": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "allowRemoteUpdates": { "type": "boolean" },
+        "remoteBundleURL": {
+          "anyOf": [
+            { "const": "" },
+            { "type": "string", "pattern": "^https://[^\\s]+$" }
+          ]
+        },
+        "requestTimeoutSeconds": { "type": "integer", "minimum": 1, "maximum": 120 }
+      }
     }
   },
   "$defs": {

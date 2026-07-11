@@ -1,0 +1,4 @@
+ios:
+  - Remote images use SwiftUI AsyncImage placeholders while loading.
+android:
+  - Remote images use Coil placeholders and may settle on a different frame than iOS.

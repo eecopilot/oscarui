@@ -27,6 +27,13 @@ Generate native code for both platforms:
 npm run build
 ```
 
+Build the optional versioned Runtime Mode bundle and both native interpreters:
+
+```sh
+npm run build:runtime
+npm run runtime:parity
+```
+
 Run the lightweight test loop:
 
 ```sh
@@ -68,6 +75,7 @@ Do not edit these files by hand:
 
 - `generated/ios/*.swift`
 - `generated/android/*.kt`
+- `generated/runtime/`
 - `.aic/ios/`
 - `.aic/android/`
 
@@ -100,6 +108,43 @@ Build, install, and launch the apps:
 ```sh
 npm run dev:ios
 npm run dev:android
+```
+
+Runtime Mode stays opt-in; Compile Mode remains the default stable path:
+
+```sh
+npm run dry-run:ios:runtime
+npm run dry-run:android:runtime
+npm run dev:ios:runtime
+npm run dev:android:runtime
+```
+
+The portable bundle is emitted at `generated/runtime/oscarui.runtime.json`. Native runtimes verify its SHA-256 hash and compatibility range before activation, cache the current and last-known-good bundle, and can fetch an HTTPS update when enabled in `src/app.config.yaml`.
+
+Configure route transitions globally in `src/app.config.yaml`:
+
+```yaml
+navigation:
+  animation: none # none | platform
+```
+
+`none` disables push and pop transitions on both platforms. `platform` keeps the native SwiftUI and Compose transitions.
+
+Install a freshly built bundle into an already-running debug app without rebuilding it:
+
+```sh
+npm run runtime:install:ios
+npm run runtime:install:android
+```
+
+Capture Compile/Runtime screenshots, compare them per platform, and manage visual baselines:
+
+```sh
+npm run snapshots
+npm run snapshots:runtime
+npm run snapshots:runtime-parity
+npm run snapshots:accept
+npm run author:visual-review
 ```
 
 Import a constrained Figma JSON export into a draft screen:

@@ -51,6 +51,9 @@ export function runAuthorLoop(root) {
   if (results[0].ok) {
     results.push(runStep(root, 'build generated native output', ['build']));
   }
+  if (results.every(result => result.ok)) {
+    results.push(runStep(root, 'review accepted visual baseline', ['visual:review']));
+  }
 
   const outDir = path.join(root, '.aic');
   const outFile = path.join(outDir, 'ai-feedback.md');

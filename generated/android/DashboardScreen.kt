@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.navigation.NavHostController
 import coil.compose.AsyncImage
 
 data class ProjectsItem(
@@ -32,7 +31,7 @@ interface DashboardActions {
 }
 
 @Composable
-fun DashboardScreen(actions: DashboardActions, navController: NavHostController) {
+fun DashboardScreen(actions: DashboardActions, navigator: OscarNavigator) {
     var isEmpty by remember { mutableStateOf<Boolean>(false) }
     val projects = remember { listOf(
         ProjectsItem(id = 0, name = "Login screen", platform = "SwiftUI / Compose"),

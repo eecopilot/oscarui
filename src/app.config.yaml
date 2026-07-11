@@ -40,3 +40,11 @@ links:
 orientation:
   phone: portrait
   tablet: all
+
+navigation:
+  animation: none
+
+runtime:
+  allowRemoteUpdates: false
+  remoteBundleURL: ""
+  requestTimeoutSeconds: 15

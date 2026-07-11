@@ -25,12 +25,13 @@ function copyNativeSwift(root, appDir) {
   return copyFilesByExtension(root, sourceDir, appDir, '.swift');
 }
 
-export function prepareIosHost(root, config = {}) {
+export function prepareIosHost(root, config = {}, options = {}) {
   const ios = iosConfig(config);
   const iosRoot = path.join(root, '.aic/ios');
   const appDir = path.join(iosRoot, ios.appName);
   const projectDir = path.join(iosRoot, `${ios.appName}.xcodeproj`);
-  const generatedSourceDir = path.join(root, 'generated/ios');
+  const runtimeMode = options.mode === 'runtime';
+  const generatedSourceDir = runtimeMode ? path.join(root, 'generated/runtime/ios') : path.join(root, 'generated/ios');
 
   resetPath(appDir);
   resetPath(projectDir);
@@ -43,6 +44,9 @@ export function prepareIosHost(root, config = {}) {
   writeFile(path.join(appDir, 'Assets.xcassets/Contents.json'), emitAssetCatalogContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AppIcon.appiconset/Contents.json'), emitAppIconContents());
   writeFile(path.join(appDir, 'Assets.xcassets/AccentColor.colorset/Contents.json'), emitAccentColorContents());
+  if (runtimeMode) {
+    fs.copyFileSync(path.join(root, 'generated/runtime/oscarui.runtime.json'), path.join(appDir, 'oscarui.runtime.json'));
+  }
   writeFile(path.join(iosRoot, 'GeneratedInfo.plist'), emitInfoPlist(config));
   writeFile(path.join(appDir, `${ios.appName}.entitlements`), emitEntitlements(config));
   writeFile(path.join(projectDir, 'project.pbxproj'), emitProject(config));
@@ -52,7 +56,7 @@ export function prepareIosHost(root, config = {}) {
   return {
     appName: ios.appName,
     bundleId: ios.bundleId,
-    template: IOS_HOST_TEMPLATE,
+    template: runtimeMode ? `${IOS_HOST_TEMPLATE}+runtime` : IOS_HOST_TEMPLATE,
     iosRoot,
     project: path.join(projectDir, 'project.pbxproj'),
     scheme: ios.appName,

@@ -20,8 +20,8 @@ export function applyVisibility(lines, node) {
 
 export function actionLines(action) {
   const lines = [`actions.${action.name}()`];
-  if (action.navigation?.type === 'push') lines.push(`navController.navigate("${action.navigation.screen}")`);
-  if (action.navigation?.type === 'pop') lines.push('navController.popBackStack()');
+  if (action.navigation?.type === 'push') lines.push(`navigator.navigate("${action.navigation.screen}")`);
+  if (action.navigation?.type === 'pop') lines.push('navigator.pop()');
   return lines;
 }
 

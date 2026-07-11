@@ -18,8 +18,14 @@ import { semanticCheck, themeProblems } from './ir-semantics.mjs';
 import { validatePlugins } from './plugin-validator.mjs';
 import { createSchemaValidators } from './schema-validators.mjs';
 import { loadComponents, loadScreens, loadTokens } from './source-loader.mjs';
+import { buildRuntime as emitRuntimeBuild } from './runtime/build.mjs';
+import { runtimeCompatibilityProblems } from './runtime/validation.mjs';
+import { installRuntimeAndroid, installRuntimeIos } from './runtime/install.mjs';
+import { runtimeParityReport } from './runtime/parity.mjs';
+import { runtimeSnapshotParity } from './runtime/snapshot-parity.mjs';
+import { acceptVisualBaselines, reviewVisualBaselines } from './visual-review.mjs';
 
-const { validateSchema, validateAppConfigSchema, validatePluginSchema } = createSchemaValidators(ROOT);
+const { validateSchema, validateAppConfigSchema, validatePluginSchema, validateRuntimeBundleSchema } = createSchemaValidators(ROOT);
 
 function validate() {
   const screens = loadScreens(ROOT, SCREEN_DIR, SRC_ROOT);
@@ -111,7 +117,7 @@ function validate() {
     }
   }
   if (failed) process.exit(1);
-  return { screens, components };
+  return { screens, components, tokens, appConfig };
 }
 
 function build() {
@@ -126,7 +132,7 @@ function build() {
   fs.mkdirSync(androidDir, { recursive: true });
 
   fs.writeFileSync(path.join(iosDir, 'Theme.swift'), emitThemeSwift(tokens));
-  fs.writeFileSync(path.join(iosDir, 'App.swift'), emitAppSwift(screens));
+  fs.writeFileSync(path.join(iosDir, 'App.swift'), emitAppSwift(screens, appConfig.app.name, appConfig));
   fs.writeFileSync(path.join(androidDir, 'Theme.kt'), emitThemeKotlin(tokens));
   console.log('→ generated/ios/Theme.swift');
   console.log('→ generated/ios/App.swift');
@@ -153,12 +159,43 @@ function build() {
   return { screens, appConfig };
 }
 
+function validateRuntime() {
+  const project = validate();
+  const reports = runtimeCompatibilityProblems(project.screens, project.components);
+  if (reports.length) {
+    for (const report of reports) {
+      console.error(`✗ ${report.file}`);
+      for (const problem of report.problems) console.error(`    ${problem}`);
+    }
+    process.exit(1);
+  }
+  console.log('✓ Runtime Mode compatibility');
+  return project;
+}
+
+function buildRuntime() {
+  const project = validateRuntime();
+  const nativeCreated = ensureNativeActionStubs(ROOT, project.screens, NATIVE_DIR);
+  const emitted = emitRuntimeBuild(ROOT, project);
+  if (!validateRuntimeBundleSchema(emitted.bundle)) {
+    const errors = validateRuntimeBundleSchema.errors.map(error => `${error.instancePath || '/'} ${error.message}`).join('\n');
+    throw new Error(`runtime bundle schema validation failed:\n${errors}`);
+  }
+  console.log(`→ ${path.relative(ROOT, emitted.file)}`);
+  for (const file of emitted.iosFiles) console.log(`→ ${path.relative(ROOT, file)}`);
+  for (const file of emitted.androidFiles) console.log(`→ ${path.relative(ROOT, file)}`);
+  for (const file of nativeCreated) console.log(`→ ${file}`);
+  return project;
+}
+
 const cmd = process.argv[2];
 if (cmd === 'validate') validate();
 else if (cmd === 'build') build();
+else if (cmd === 'runtime:validate') validateRuntime();
+else if (cmd === 'build:runtime') buildRuntime();
 else if (cmd === 'author:loop') runAuthorLoop(ROOT);
 else if (cmd === 'figma:import') importFigma(ROOT, process.argv[3], process.argv[4]);
-else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens);
+else if (cmd === 'snapshots:diff') diffSnapshots(ROOT, validate().screens, process.argv[3] ?? 'compile');
 else if (cmd === 'plugins:validate') validatePlugins(ROOT, validatePluginSchema);
 else if (cmd === 'doctor:ios') doctorIos() || process.exit(1);
 else if (cmd === 'doctor:android') doctorAndroid() || process.exit(1);
@@ -178,13 +215,50 @@ else if (cmd === 'dev:android') {
   const { screens, appConfig } = build();
   devAndroid(ROOT, screens, appConfig);
 }
+else if (cmd === 'dry-run:ios:runtime') {
+  const { appConfig } = buildRuntime();
+  dryRunIos(ROOT, appConfig, { mode: 'runtime' });
+}
+else if (cmd === 'dev:ios:runtime') {
+  const { appConfig } = buildRuntime();
+  devIos(ROOT, appConfig, { mode: 'runtime' });
+}
+else if (cmd === 'dry-run:android:runtime') {
+  const { screens, appConfig } = buildRuntime();
+  dryRunAndroid(ROOT, screens, appConfig, { mode: 'runtime' });
+}
+else if (cmd === 'dev:android:runtime') {
+  const { screens, appConfig } = buildRuntime();
+  devAndroid(ROOT, screens, appConfig, { mode: 'runtime' });
+}
+else if (cmd === 'runtime:install:ios') {
+  const project = validateRuntime();
+  installRuntimeIos(ROOT, project.appConfig, process.argv[3]);
+}
+else if (cmd === 'runtime:install:android') {
+  const project = validateRuntime();
+  installRuntimeAndroid(ROOT, project.appConfig, process.argv[3]);
+}
+else if (cmd === 'runtime:parity') {
+  const project = buildRuntime();
+  runtimeParityReport(ROOT, project);
+}
+else if (cmd === 'snapshots:runtime-parity') runtimeSnapshotParity(ROOT, validate().screens);
+else if (cmd === 'snapshots:accept') acceptVisualBaselines(ROOT);
+else if (cmd === 'visual:review') reviewVisualBaselines(ROOT);
 else if (cmd === 'snapshots') {
   const { screens, appConfig } = build();
   devIos(ROOT, appConfig);
   devAndroid(ROOT, screens, appConfig);
-  captureSnapshots(ROOT, screens);
+  captureSnapshots(ROOT, screens, { variant: 'compile' });
+}
+else if (cmd === 'snapshots:runtime') {
+  const { screens, appConfig } = buildRuntime();
+  devIos(ROOT, appConfig, { mode: 'runtime' });
+  devAndroid(ROOT, screens, appConfig, { mode: 'runtime' });
+  captureSnapshots(ROOT, screens, { variant: 'runtime' });
 }
 else {
-  console.log('usage: node compiler/aic.mjs <validate|build|author:loop|figma:import|snapshots:diff|plugins:validate|doctor:ios|dry-run:ios|dev:ios|doctor:android|dry-run:android|dev:android|snapshots>');
+  console.log('usage: node compiler/aic.mjs <validate|build|runtime:validate|build:runtime|runtime:parity|runtime:install:ios|runtime:install:android|author:loop|figma:import|snapshots|snapshots:runtime|snapshots:diff|snapshots:runtime-parity|snapshots:accept|visual:review|plugins:validate|doctor:ios|dry-run:ios|dev:ios|dry-run:ios:runtime|dev:ios:runtime|doctor:android|dry-run:android|dev:android|dry-run:android:runtime|dev:android:runtime>');
   process.exit(1);
 }

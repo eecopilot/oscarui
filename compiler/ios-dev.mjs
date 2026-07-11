@@ -56,8 +56,8 @@ export function doctorIos() {
   return true;
 }
 
-export function dryRunIos(root, config) {
-  const host = prepareIosHost(root, config);
+export function dryRunIos(root, config, options = {}) {
+  const host = prepareIosHost(root, config, options);
   const commands = iosCommandPlan(root, undefined, config);
 
   console.log(`→ ${host.project}`);
@@ -70,8 +70,8 @@ export function dryRunIos(root, config) {
   }
 }
 
-export function devIos(root, config) {
-  const host = prepareIosHost(root, config);
+export function devIos(root, config, options = {}) {
+  const host = prepareIosHost(root, config, options);
   console.log(`→ ${host.project}`);
   console.log(`→ .aic/ios/${host.appName}/*.swift`);
   console.log(`→ iOS host template: ${host.template}`);

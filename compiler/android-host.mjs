@@ -29,11 +29,12 @@ function copyNativeKotlin(root, targetDir) {
   return copyFilesByExtension(root, sourceDir, targetDir, '.kt');
 }
 
-export function prepareAndroidHost(root, screens, config = {}) {
+export function prepareAndroidHost(root, screens, config = {}, options = {}) {
   const android = androidConfig(config);
   const androidRoot = path.join(root, '.aic/android');
   const appDir = path.join(androidRoot, 'app');
-  const sourceDir = path.join(root, 'generated/android');
+  const runtimeMode = options.mode === 'runtime';
+  const sourceDir = runtimeMode ? path.join(root, 'generated/runtime/android') : path.join(root, 'generated/android');
   const packageDir = path.join(appDir, 'src/main/java/app/generated');
   const androidHome = defaultAndroidHome();
   const javaHome = detectJava17Home();
@@ -56,12 +57,18 @@ export function prepareAndroidHost(root, screens, config = {}) {
   writeFile(path.join(appDir, 'build.gradle.kts'), emitAppBuildGradle(config));
   writeFile(path.join(appDir, 'src/main/AndroidManifest.xml'), emitManifest(config));
   writeFile(path.join(appDir, 'src/main/res/values/styles.xml'), emitStyles());
-  writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entryScreen.screen, screens.map(({ ir }) => ir.screen)));
+  if (runtimeMode) {
+    const assetDir = path.join(appDir, 'src/main/assets');
+    fs.mkdirSync(assetDir, { recursive: true });
+    fs.copyFileSync(path.join(root, 'generated/runtime/oscarui.runtime.json'), path.join(assetDir, 'oscarui.runtime.json'));
+  } else {
+    writeFile(path.join(packageDir, 'MainActivity.kt'), emitMainActivity(entryScreen.screen, screens.map(({ ir }) => ir.screen), config));
+  }
 
   return {
     appName: android.appName,
     applicationId: android.applicationId,
-    template: ANDROID_HOST_TEMPLATE,
+    template: runtimeMode ? `${ANDROID_HOST_TEMPLATE}+runtime` : ANDROID_HOST_TEMPLATE,
     androidHome,
     androidRoot,
     gradleProject: androidRoot,

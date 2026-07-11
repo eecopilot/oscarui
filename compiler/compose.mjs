@@ -37,7 +37,6 @@ function componentImports() {
     'import androidx.compose.ui.text.input.KeyboardType',
     'import androidx.compose.ui.text.input.PasswordVisualTransformation',
     'import androidx.compose.ui.unit.dp',
-    'import androidx.navigation.NavHostController',
     'import coil.compose.AsyncImage',
     '',
   ];
@@ -55,7 +54,7 @@ export function emitScreenKotlin(ir, components = []) {
   lines.push('}', '');
 
   lines.push('@Composable');
-  lines.push(`fun ${name}Screen(actions: ${name}Actions, navController: NavHostController) {`);
+  lines.push(`fun ${name}Screen(actions: ${name}Actions, navigator: OscarNavigator) {`);
   for (const s of ir.state ?? []) {
     const def = emitStateDefault(s);
     if (s.type === 'list') {

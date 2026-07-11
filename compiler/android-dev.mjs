@@ -8,6 +8,7 @@ import {
   prepareAndroidHost,
 } from './android-host.mjs';
 import { firstLine } from './dev/process.mjs';
+import { installRuntimeAndroid } from './runtime/install.mjs';
 import {
   avdNames,
   ensureAndroidDevice,
@@ -59,8 +60,8 @@ export function doctorAndroid() {
   return !checks.some(check => !check.ok);
 }
 
-export function dryRunAndroid(root, screens, config) {
-  const host = prepareAndroidHost(root, screens, config);
+export function dryRunAndroid(root, screens, config, options = {}) {
+  const host = prepareAndroidHost(root, screens, config, options);
   const commands = androidCommandPlan(root, undefined, config);
 
   console.log(`→ .aic/android`);
@@ -73,8 +74,8 @@ export function dryRunAndroid(root, screens, config) {
   }
 }
 
-export function devAndroid(root, screens, config) {
-  const host = prepareAndroidHost(root, screens, config);
+export function devAndroid(root, screens, config, options = {}) {
+  const host = prepareAndroidHost(root, screens, config, options);
   console.log(`→ .aic/android`);
   console.log(`→ .aic/android/app/src/main/java/app/generated/*.kt`);
   console.log(`→ Android host template: ${host.template}`);
@@ -89,6 +90,7 @@ export function devAndroid(root, screens, config) {
   runAndroidLogged(gradle, ['--no-daemon', '--console=plain', '-p', path.join(root, '.aic/android'), ':app:assembleDebug'], root);
   ensureAndroidDevice(root);
   runAndroidLogged(adb, ['install', '-r', apk], root);
+  if (options.mode === 'runtime') installRuntimeAndroid(root, config);
   const startCommand = androidCommandPlan(root, undefined, config).at(-1);
   runAndroidLogged(startCommand[0], startCommand[1], root);
 

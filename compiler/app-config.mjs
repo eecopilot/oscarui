@@ -32,6 +32,9 @@ export function appConfigProblems(config) {
     problems.push('platform.android.targetSdk cannot be greater than compileSdk');
   }
 
+  if (config.runtime?.allowRemoteUpdates && !String(config.runtime?.remoteBundleURL ?? '').startsWith('https://')) {
+    problems.push('runtime.allowRemoteUpdates requires an https runtime.remoteBundleURL');
+  }
+
   return problems;
 }
-

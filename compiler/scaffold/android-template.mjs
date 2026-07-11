@@ -198,8 +198,9 @@ function xmlEscape(value) {
     .replace(/"/g, '&quot;');
 }
 
-function androidPermissionNames(permissions = {}) {
+function androidPermissionNames(permissions = {}, runtime = {}) {
   const names = [];
+  if (runtime.allowRemoteUpdates) names.push('android.permission.INTERNET');
   if (permissions.camera?.enabled) names.push('android.permission.CAMERA');
   if (permissions.microphone?.enabled) names.push('android.permission.RECORD_AUDIO');
   if (permissions.locationWhenInUse?.enabled) names.push('android.permission.ACCESS_FINE_LOCATION');
@@ -219,7 +220,7 @@ function emitAndroidAppLinks(links = {}) {
 
 export function emitManifest(config = {}) {
   const android = androidConfig(config);
-  const permissions = androidPermissionNames(android.permissions).map(permission => `    <uses-permission android:name="${permission}" />`);
+  const permissions = androidPermissionNames(android.permissions, config.runtime).map(permission => `    <uses-permission android:name="${permission}" />`);
   const appLinks = emitAndroidAppLinks(android.links);
   return `<manifest xmlns:android="http://schemas.android.com/apk/res/android">
 ${permissions.length ? `${permissions.join('\n')}\n` : ''}
@@ -247,7 +248,8 @@ export function emitStyles() {
 `;
 }
 
-export function emitMainActivity(entryScreen, screens) {
+export function emitMainActivity(entryScreen, screens, config = {}) {
+  const animationsEnabled = config.navigation?.animation !== 'none';
   const lines = [
     'package app.generated',
     '',
@@ -265,6 +267,8 @@ export function emitMainActivity(entryScreen, screens) {
     'import androidx.compose.material3.Text',
     'import androidx.compose.runtime.Composable',
     'import androidx.compose.runtime.getValue',
+    'import androidx.compose.runtime.mutableStateListOf',
+    'import androidx.compose.runtime.remember',
     'import androidx.compose.ui.Alignment',
     'import androidx.compose.ui.Modifier',
     'import androidx.compose.ui.unit.dp',
@@ -272,6 +276,7 @@ export function emitMainActivity(entryScreen, screens) {
     'import androidx.navigation.compose.composable',
     'import androidx.navigation.compose.currentBackStackEntryAsState',
     'import androidx.navigation.compose.rememberNavController',
+    'import androidx.navigation.NavHostController',
     '',
     'class MainActivity : ComponentActivity() {',
     '    override fun onCreate(savedInstanceState: Bundle?) {',
@@ -282,11 +287,37 @@ export function emitMainActivity(entryScreen, screens) {
     '    }',
     '}',
     '',
+    'interface OscarNavigator {',
+    '    fun navigate(screen: String)',
+    '    fun pop()',
+    '}',
+    '',
+    ...(animationsEnabled ? [
+      'private class OscarNavControllerNavigator(private val navController: NavHostController) : OscarNavigator {',
+      '    override fun navigate(screen: String) { navController.navigate(screen) }',
+      '    override fun pop() { navController.popBackStack() }',
+      '}',
+      '',
+    ] : [
+      'private class OscarStateNavigator(startDestination: String) : OscarNavigator {',
+      '    private val path = mutableStateListOf(startDestination)',
+      '    val currentRoute: String get() = path.last()',
+      '    override fun navigate(screen: String) { path.add(screen) }',
+      '    override fun pop() { if (path.size > 1) path.removeAt(path.lastIndex) }',
+      '}',
+      '',
+    ]),
     '@Composable',
     'private fun OscarUIRoot() {',
-    '    val navController = rememberNavController()',
-    '    val backStackEntry by navController.currentBackStackEntryAsState()',
-    '    val currentRoute = backStackEntry?.destination?.route',
+    ...(animationsEnabled ? [
+      '    val navController = rememberNavController()',
+      '    val navigator = remember(navController) { OscarNavControllerNavigator(navController) }',
+      '    val backStackEntry by navController.currentBackStackEntryAsState()',
+      '    val currentRoute = backStackEntry?.destination?.route',
+    ] : [
+      `    val navigator = remember { OscarStateNavigator("${entryScreen}") }`,
+      '    val currentRoute = navigator.currentRoute',
+    ]),
     '    MaterialTheme {',
     '        Surface(',
     '            modifier = Modifier',
@@ -295,20 +326,28 @@ export function emitMainActivity(entryScreen, screens) {
     '            color = Theme.Colors.background',
     '        ) {',
     '            Box(modifier = Modifier.fillMaxSize()) {',
-    '                NavHost(',
-    '                    navController = navController,',
-    `                    startDestination = "${entryScreen}",`,
-    `                    modifier = Modifier.padding(top = if (currentRoute != null && currentRoute != "${entryScreen}") 56.dp else 0.dp)`,
-    '                ) {',
-    ...screens.map(screen => [
-      `                    composable("${screen}") {`,
-      `                        ${screen}Screen(actions = ${screen}ActionsImpl(), navController = navController)`,
+    ...(animationsEnabled ? [
+      '                NavHost(',
+      '                    navController = navController,',
+      `                    startDestination = "${entryScreen}",`,
+      `                    modifier = Modifier.padding(top = if (currentRoute != null && currentRoute != "${entryScreen}") 56.dp else 0.dp)`,
+      '                ) {',
+      ...screens.map(screen => [
+        `                    composable("${screen}") {`,
+        `                        ${screen}Screen(actions = ${screen}ActionsImpl(), navigator = navigator)`,
+        '                    }',
+      ]).flat(),
+      '                }',
+    ] : [
+      `                Box(modifier = Modifier.padding(top = if (currentRoute != "${entryScreen}") 56.dp else 0.dp)) {`,
+      '                    when (currentRoute) {',
+      ...screens.map(screen => `                        "${screen}" -> ${screen}Screen(actions = ${screen}ActionsImpl(), navigator = navigator)`),
       '                    }',
-    ]).flat(),
-    '                }',
+      '                }',
+    ]),
     `                if (currentRoute != null && currentRoute != "${entryScreen}") {`,
     '                    IconButton(',
-    '                        onClick = { navController.popBackStack() },',
+    '                        onClick = { navigator.pop() },',
     '                        modifier = Modifier',
     '                            .align(Alignment.TopStart)',
     '                            .statusBarsPadding()',

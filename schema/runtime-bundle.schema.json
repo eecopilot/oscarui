@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "runtime-bundle.schema.json",
+  "title": "OscarUI Runtime Bundle Envelope",
+  "type": "object",
+  "required": ["contentHash", "content"],
+  "additionalProperties": false,
+  "properties": {
+    "contentHash": {
+      "type": "string",
+      "pattern": "^sha256:[a-f0-9]{64}$"
+    },
+    "content": {
+      "type": "string",
+      "description": "Canonical JSON containing the versioned manifest and portable Runtime IR payload."
+    }
+  }
+}
